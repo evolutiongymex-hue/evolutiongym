@@ -1,4 +1,3 @@
-// components/Header.jsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -17,7 +16,7 @@ const Header = () => {
   }, []);
 
   const menuItems = [
-    { name: "Inicio", href: "#inicio" },
+    { name: "Inicio", href: "#hero" },
     { name: "Planes", href: "#planes" },
     { name: "Instalaciones", href: "#instalaciones" },
     { name: "Testimonios", href: "#testimonios" },
@@ -51,12 +50,6 @@ const Header = () => {
               className="flex items-center gap-2 cursor-pointer group"
               onClick={() => scrollToSection("#inicio")}
             >
-              <div className="relative">
-                <div className="absolute inset-0 bg-primary rounded-full blur-md opacity-50 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">E</span>
-                </div>
-              </div>
               <div>
                 <span className="text-white font-bold text-xl tracking-tight">
                   EVOLUTION
@@ -135,7 +128,7 @@ const Header = () => {
               key={item.name}
               onClick={() => scrollToSection(item.href)}
               className={`
-                text-2xl font-semibold text-white hover:text-primary transition-colors
+                text-2xl font-semibold text-white hover:text-primary
                 transform transition-all duration-500
                 ${
                   isMobileMenuOpen

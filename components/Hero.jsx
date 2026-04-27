@@ -1,4 +1,3 @@
-// components/Hero.jsx
 "use client";
 
 import React, { useEffect, useRef } from "react";
@@ -114,6 +113,7 @@ const Hero = () => {
     <section
       ref={heroRef}
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      id="hero"
     >
       {/* Fondo con gradientes animados */}
       <div className="absolute inset-0">

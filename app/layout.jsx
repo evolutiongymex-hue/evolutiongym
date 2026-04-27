@@ -2,8 +2,9 @@
 import { Inter, Poppins } from "next/font/google";
 import Background from "../components/Background";
 import Header from "../components/Header";
-import Footer from "@/components/Footer";
+import BotonWhatsApp from "../components/BotonWhatsApp"; // ← NUEVO
 import "./globals.css";
+import Footer from "@/components/Footer";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,6 +30,7 @@ export default function RootLayout({ children }) {
         <Background />
         <Header />
         <div className="relative z-10">{children}</div>
+        <BotonWhatsApp />
         <Footer />
       </body>
     </html>
