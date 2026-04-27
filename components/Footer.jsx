@@ -15,15 +15,15 @@ const Footer = () => {
     const ctx = gsap.context(() => {
       gsap.fromTo(
         footerRef.current,
-        { opacity: 0, y: 50 },
+        { opacity: 0, y: 30 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.8,
-          ease: "power3.out",
+          duration: 0.6,
+          ease: "power2.out",
           scrollTrigger: {
             trigger: footerRef.current,
-            start: "top 90%",
+            start: "top 95%",
             toggleActions: "play none none reverse",
           },
         }
@@ -43,9 +43,9 @@ const Footer = () => {
   return (
     <footer
       ref={footerRef}
-      className="relative z-10 border-t border-gray-800 bg-black/50 backdrop-blur-sm"
+      className="relative z-20 border-t border-gray-800 bg-black/90 backdrop-blur-sm mt-auto"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Grid principal del footer */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           {/* Columna 1 - Logo y descripción */}
@@ -54,9 +54,6 @@ const Footer = () => {
               className="flex items-center gap-2 mb-4 cursor-pointer"
               onClick={() => scrollToSection("#inicio")}
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-xl">E</span>
-              </div>
               <div>
                 <span className="text-white font-bold text-xl tracking-tight">
                   EVOLUTION
@@ -68,7 +65,6 @@ const Footer = () => {
               Tu mejor versión comienza aquí. Entrenamiento de calidad, horarios
               flexibles y los mejores precios.
             </p>
-            {/* Redes sociales */}
             <div className="flex gap-3">
               <a
                 href="#"
@@ -177,7 +173,7 @@ const Footer = () => {
             </ul>
             <div className="mt-4 p-3 rounded-lg bg-primary/10 border border-primary/20">
               <p className="text-primary text-xs font-semibold">
-                🚀 ABRIMOS 7 DÍAS A LA SEMANA
+                ABRIMOS 7 DÍAS A LA SEMANA
               </p>
             </div>
           </div>
@@ -244,7 +240,6 @@ const Footer = () => {
               </li>
             </ul>
 
-            {/* Botón WhatsApp directo */}
             <a
               href="https://wa.me/56912345678?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20los%20planes"
               target="_blank"
@@ -269,7 +264,6 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Línea divisoria */}
         <div className="border-t border-gray-800 pt-6 mt-6">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-gray-500 text-xs">
