@@ -59,7 +59,7 @@ const Header = () => {
             </div>
 
             {/* Menu Desktop */}
-            <nav className="hidden md:flex items-center gap-8">
+            <nav className="hidden lg:flex items-center gap-8">
               {menuItems.map((item) => (
                 <button
                   key={item.name}
@@ -73,7 +73,7 @@ const Header = () => {
             </nav>
 
             {/* Botón CTA Desktop */}
-            <div className="hidden md:block">
+            <div className="hidden lg:block">
               <button
                 onClick={() => scrollToSection("#formulario")}
                 className="relative overflow-hidden group bg-gradient-to-r from-primary to-primary-600 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-lg shadow-primary/20"
@@ -86,7 +86,7 @@ const Header = () => {
             {/* Botón Mobile Menu */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden relative w-10 h-10 flex flex-col items-center justify-center gap-1.5 group"
+              className="lg:hidden relative w-10 h-10 flex flex-col items-center justify-center gap-1.5 group"
             >
               <span
                 className={`
@@ -114,7 +114,7 @@ const Header = () => {
       {/* Mobile Menu Overlay */}
       <div
         className={`
-        fixed inset-0 z-40 bg-background/95 backdrop-blur-lg transition-all duration-500 md:hidden
+        fixed inset-0 z-40 bg-background/95 backdrop-blur-lg transition-all duration-500 lg:hidden
         ${
           isMobileMenuOpen
             ? "opacity-100 visible pointer-events-auto"
