@@ -1,155 +1,117 @@
+// components/Formulario.jsx
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
-}
+import React, { useState } from "react";
 
 const Formulario = () => {
-  const sectionRef = useRef(null);
-  const titleRef = useRef(null);
-  const formRef = useRef(null);
-
   const [formData, setFormData] = useState({
     nombre: "",
     telefono: "",
+    fecha: "",
     horario: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState(null); // 'success', 'error', null
-
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        titleRef.current,
-        { opacity: 0, y: 50 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top 80%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-
-      gsap.fromTo(
-        formRef.current,
-        { opacity: 0, y: 80 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          delay: 0.3,
-          ease: "back.out(0.8)",
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top 70%",
-            toggleActions: "play none none reverse",
-          },
-        }
-      );
-    }, sectionRef);
-
-    return () => ctx.revert();
-  }, []);
+  const [message, setMessage] = useState({ type: "", text: "" });
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (message.text) setMessage({ type: "", text: "" });
+  };
+
+  const validarTelefono = (telefono) => {
+    const digitos = telefono.replace(/\D/g, "");
+    return digitos.length >= 10;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validaciones básicas
     if (!formData.nombre.trim()) {
-      setSubmitStatus({
-        type: "error",
-        message: "Por favor ingresa tu nombre",
-      });
-      setTimeout(() => setSubmitStatus(null), 3000);
+      setMessage({ type: "error", text: "Por favor ingresa tu nombre" });
       return;
     }
 
-    if (!formData.telefono.trim()) {
-      setSubmitStatus({
+    if (!validarTelefono(formData.telefono)) {
+      setMessage({
         type: "error",
-        message: "Por favor ingresa tu teléfono",
+        text: "Ingresa un teléfono válido (mínimo 10 dígitos)",
       });
-      setTimeout(() => setSubmitStatus(null), 3000);
+      return;
+    }
+
+    if (!formData.fecha) {
+      setMessage({
+        type: "error",
+        text: "Selecciona una fecha para tu clase prueba",
+      });
       return;
     }
 
     if (!formData.horario) {
-      setSubmitStatus({
+      setMessage({
         type: "error",
-        message: "Selecciona un horario de preferencia",
+        text: "Selecciona un horario de preferencia",
       });
-      setTimeout(() => setSubmitStatus(null), 3000);
       return;
     }
 
     setIsSubmitting(true);
+    setMessage({ type: "", text: "" });
 
-    // Simulación de envío (luego conectaremos a Google Sheets)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log("Datos enviados:", formData);
-
-      setSubmitStatus({
-        type: "success",
-        message: "¡Clase agendada con éxito! Te contactaremos pronto.",
+      const response = await fetch("/api/submit-lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: formData.nombre,
+          telefono: formData.telefono,
+          fecha: formData.fecha,
+          horario: formData.horario,
+        }),
       });
-      setFormData({ nombre: "", telefono: "", horario: "" });
 
-      setTimeout(() => setSubmitStatus(null), 5000);
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage({ type: "success", text: data.message });
+        setFormData({ nombre: "", telefono: "", fecha: "", horario: "" });
+      } else {
+        setMessage({ type: "error", text: data.error || "Error al enviar" });
+      }
     } catch (error) {
-      setSubmitStatus({
+      setMessage({
         type: "error",
-        message: "Error al enviar. Intenta nuevamente.",
+        text: "Error de conexión. Intenta nuevamente.",
       });
-      setTimeout(() => setSubmitStatus(null), 3000);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <section ref={sectionRef} className="py-24 px-4" id="formulario">
+    <section className="py-24 px-4" id="formulario">
       <div className="max-w-5xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Columna izquierda - Texto */}
-          <div ref={titleRef}>
+          <div>
             <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20">
               <span className="text-primary text-sm font-semibold">
-                RESERVA TU LUGAR
+                📅 RESERVA TU CLASE
               </span>
             </div>
-
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
               ¿Listo para{" "}
               <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                 empezar?
               </span>
             </h2>
-
             <p className="text-gray-400 text-lg mb-6">
               Completa el formulario y agenda tu{" "}
-              <span className="text-primary font-semibold">clase gratis</span>.
-              Un asesor te contactará en menos de 15 minutos.
+              <span className="text-primary font-semibold">clase gratis</span>{" "}
+              en el día que prefieras.
             </p>
-
-            {/* Beneficios rápidos */}
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -188,7 +150,7 @@ const Formulario = () => {
                   </svg>
                 </div>
                 <span className="text-gray-300 text-sm">
-                  Respuesta en menos de 15 min
+                  Elige el día que quieras
                 </span>
               </div>
               <div className="flex items-center gap-3">
@@ -208,40 +170,35 @@ const Formulario = () => {
                   </svg>
                 </div>
                 <span className="text-gray-300 text-sm">
-                  Sin spam, solo información útil
+                  Respuesta en menos de 15 min
                 </span>
-              </div>
-            </div>
-
-            {/* Testimonio mini */}
-            <div className="mt-8 p-4 rounded-xl bg-white/5 border border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center">
-                  <span className="text-secondary font-bold">AR</span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 italic">
-                    "Agendé mi clase gratis y a la semana ya era socio. Súper
-                    recomendado."
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">— Ana R.</p>
-                </div>
               </div>
             </div>
           </div>
 
           {/* Columna derecha - Formulario */}
-          <div ref={formRef}>
+          <div>
             <div className="bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-800 p-6 md:p-8">
               <h3 className="text-2xl font-bold mb-2 text-center">
                 Agenda tu clase gratis
               </h3>
               <p className="text-gray-400 text-sm text-center mb-6">
-                Completa el formulario y te contactamos
+                Elige el día y horario que prefieras
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Campo Nombre */}
+              {message.text && (
+                <div
+                  className={`mb-4 p-3 rounded-lg text-center text-sm ${
+                    message.type === "success"
+                      ? "bg-green-500/20 border border-green-500/50 text-green-400"
+                      : "bg-red-500/20 border border-red-500/50 text-red-400"
+                  }`}
+                >
+                  {message.text}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
                     Nombre completo *
@@ -251,12 +208,12 @@ const Formulario = () => {
                     name="nombre"
                     value={formData.nombre}
                     onChange={handleChange}
+                    disabled={isSubmitting}
                     placeholder="Ej: Juan Pérez"
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
 
-                {/* Campo Teléfono */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
                     Teléfono *
@@ -266,15 +223,33 @@ const Formulario = () => {
                     name="telefono"
                     value={formData.telefono}
                     onChange={handleChange}
-                    placeholder="Ej: +56 9 1234 5678"
-                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    disabled={isSubmitting}
+                    placeholder="Ej: 9123456789"
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <p className="text-gray-500 text-xs mt-1">
+                    10 dígitos, sin +56
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    ¿Qué día quieres venir? *
+                  </label>
+                  <input
+                    type="date"
+                    name="fecha"
+                    value={formData.fecha}
+                    onChange={handleChange}
+                    disabled={isSubmitting}
+                    min={new Date().toISOString().split("T")[0]}
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </div>
 
-                {/* Campo Horario */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">
-                    ¿Qué horario te interesa? *
+                    Horario preferido *
                   </label>
                   <div className="grid grid-cols-3 gap-3">
                     {["Mañana", "Tarde", "Noche"].map((horario) => (
@@ -282,92 +257,30 @@ const Formulario = () => {
                         key={horario}
                         type="button"
                         onClick={() => setFormData({ ...formData, horario })}
-                        className={`
-                          py-2 px-3 rounded-lg text-sm font-medium transition-all
-                          ${
-                            formData.horario === horario
-                              ? "bg-primary text-white"
-                              : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                          }
-                        `}
+                        className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                          formData.horario === horario
+                            ? "bg-primary text-white"
+                            : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                        }`}
                       >
                         {horario}
-                        {horario === "Mañana" && " 🌅"}
-                        {horario === "Tarde" && " ☀️"}
-                        {horario === "Noche" && " 🌙"}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Botón de envío */}
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`
-                    w-full py-3 rounded-lg font-semibold text-white transition-all mt-6
-                    ${
-                      isSubmitting
-                        ? "bg-gray-600 cursor-not-allowed"
-                        : "bg-primary hover:bg-primary-600 hover:scale-105 active:scale-95"
-                    }
-                  `}
+                  className={`w-full py-3 rounded-lg font-semibold text-white transition-all mt-4 ${
+                    isSubmitting
+                      ? "bg-gray-600 cursor-not-allowed"
+                      : "bg-primary hover:bg-primary-600"
+                  }`}
                 >
-                  {isSubmitting ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg
-                        className="animate-spin h-5 w-5 text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Enviando...
-                    </span>
-                  ) : (
-                    "Agendar clase prueba"
-                  )}
+                  {isSubmitting ? "Enviando..." : "Agendar clase prueba"}
                 </button>
-
-                {/* Mensaje de privacidad */}
-                <p className="text-center text-gray-500 text-xs mt-4">
-                  Al enviar, aceptas nuestros{" "}
-                  <button
-                    type="button"
-                    className="text-primary hover:underline"
-                  >
-                    términos y condiciones
-                  </button>
-                </p>
               </form>
-
-              {/* Mensaje de éxito/error */}
-              {submitStatus && (
-                <div
-                  className={`
-                  mt-4 p-3 rounded-lg text-center text-sm
-                  ${
-                    submitStatus.type === "success"
-                      ? "bg-green-500/20 border border-green-500/50 text-green-400"
-                      : "bg-red-500/20 border border-red-500/50 text-red-400"
-                  }
-                `}
-                >
-                  {submitStatus.message}
-                </div>
-              )}
             </div>
           </div>
         </div>
