@@ -26,13 +26,11 @@ export async function POST(request) {
     const id = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
     const leadData = {
-      id: id,
-      fecha_creacion: new Date().toLocaleString("es-MX", {
-        timeZone: "America/Mexico_City",
-      }),
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+      fecha_creacion: new Date().toISOString(), // ← Formato ISO
       nombre: nombre.trim(),
       telefono: telefonoLimpio,
-      fecha_prueba: fecha,
+      fecha_prueba: fecha, // ← Esta viene del input date (YYYY-MM-DD)
       horario: horario,
       estado: "NUEVO",
       fuente: "Landing Page",
@@ -43,9 +41,7 @@ export async function POST(request) {
       fecha_pago: "",
       proximo_pago: "",
       recibio_url: "",
-      ultima_interaccion: new Date().toLocaleString("es-MX", {
-        timeZone: "America/Mexico_City",
-      }),
+      ultima_interaccion: new Date().toISOString(), // ← Formato ISO
       actualizado_por: "sistema",
       notas: "",
     };

@@ -4,13 +4,22 @@ import { NextResponse } from "next/server";
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { id, campo, valor } = body;
+    const {
+      tipo,
+      id,
+      campo,
+      valor,
+      fecha_pago,
+      proximo_pago,
+      plan,
+      precio,
+      recibo_url,
+    } = body;
 
-    if (!id || !campo) {
-      return NextResponse.json({ error: "Falta id o campo" }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ error: "Falta id" }, { status: 400 });
     }
 
-    // Usar el MISMO webhook de siempre
     const webhookUrl = process.env.MAKE_WEBHOOK_URL;
 
     if (!webhookUrl) {
@@ -21,15 +30,31 @@ export async function POST(request) {
       );
     }
 
-    // Enviar al MISMO webhook, pero con tipo "update"
-    const payload = {
-      tipo: "update", // ← CLAVE: para que el router sepa qué hacer
-      id: id,
-      campo: campo,
-      valor: valor,
-    };
+    let payload;
 
-    console.log("📤 Enviando a MAKE:", payload);
+    // Caso: pago completo (una sola petición con todos los datos)
+    if (tipo === "pago_completo") {
+      payload = {
+        tipo: "pago_completo",
+        id: id,
+        fecha_pago: fecha_pago,
+        proximo_pago: proximo_pago,
+        plan: plan,
+        precio: precio,
+        recibo_url: recibo_url || "",
+      };
+      console.log("📤 Enviando pago completo a MAKE:", payload);
+    }
+    // Caso: update normal (campo + valor)
+    else {
+      payload = {
+        tipo: tipo || "update",
+        id: id,
+        campo: campo,
+        valor: valor,
+      };
+      console.log("📤 Enviando update a MAKE:", payload);
+    }
 
     const response = await fetch(webhookUrl, {
       method: "POST",
