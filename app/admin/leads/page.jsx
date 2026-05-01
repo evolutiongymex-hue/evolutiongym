@@ -1,28 +1,28 @@
-// app/admin/leads/page.jsx
 "use client";
 
 import { useEffect, useState } from "react";
 import {
   RefreshCw,
   Users,
-  CheckCircle,
-  XCircle,
   Calendar,
   Phone,
   Clock,
   AlertCircle,
   Loader2,
+  ThumbsUp,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState("");
 
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      // 🔥 SIN FILTRO para ver todos los datos primero
       const response = await fetch("/api/sheets?sheet=CRM_Evolution_Gym");
       const data = await response.json();
 
@@ -33,7 +33,7 @@ export default function LeadsPage() {
         setError(data.error || "Error al cargar leads");
       }
     } catch (error) {
-      setError("Error de conexión con el servidor");
+      setError("Error de conexión");
     } finally {
       setLoading(false);
     }
@@ -42,6 +42,33 @@ export default function LeadsPage() {
   useEffect(() => {
     fetchLeads();
   }, []);
+
+  const updateLead = async (id, campo, valor) => {
+    setLeads((prevLeads) =>
+      prevLeads.map((lead) =>
+        lead.id === id ? { ...lead, [campo]: valor } : lead
+      )
+    );
+
+    setUpdatingId(id);
+
+    try {
+      const response = await fetch("/api/leads/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, campo, valor }),
+      });
+
+      if (!response.ok) {
+        await fetchLeads();
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      await fetchLeads();
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -59,7 +86,7 @@ export default function LeadsPage() {
         <p className="text-sm">{error}</p>
         <button
           onClick={fetchLeads}
-          className="mt-3 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm transition-colors"
+          className="mt-3 px-4 py-2 bg-red-500/20 rounded-lg text-sm"
         >
           Reintentar
         </button>
@@ -67,17 +94,33 @@ export default function LeadsPage() {
     );
   }
 
-  if (leads.length === 0) {
+  const leadsFiltrados = leads.filter((lead) => lead.estado !== "ACTIVO");
+
+  if (leadsFiltrados.length === 0) {
     return (
       <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-8 text-center">
         <AlertCircle className="w-12 h-12 text-gray-600 mx-auto mb-3" />
         <p className="text-gray-400">No hay leads registrados aún</p>
-        <p className="text-gray-500 text-sm mt-2">
-          Los leads del formulario aparecerán aquí automáticamente
-        </p>
       </div>
     );
   }
+
+  const isConfirmado = (lead) => {
+    return (
+      lead.confirmo === "Sí" ||
+      lead.confirmo === true ||
+      lead.confirmo === "true"
+    );
+  };
+
+  const isAsistio = (lead) => {
+    return (
+      lead.asistio === "Sí" ||
+      lead.asistio === "asistio" ||
+      lead.asistio === true ||
+      lead.asistio === "true"
+    );
+  };
 
   return (
     <div>
@@ -88,16 +131,16 @@ export default function LeadsPage() {
               <Users className="w-6 h-6 text-primary" />
               LEADS
             </h1>
-            <p className="text-gray-400 text-sm ml-8">
-              Clientes nuevos que pidieron clase gratis
+            <p className="text-gray-400 text-sm">
+              Clientes que pidieron clase gratis
             </p>
-            <p className="text-gray-500 text-xs mt-1 ml-8">
-              Total: {leads.length} leads
+            <p className="text-gray-500 text-xs mt-1">
+              Total: {leadsFiltrados.length} leads
             </p>
           </div>
           <button
             onClick={fetchLeads}
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
             Actualizar
@@ -128,14 +171,14 @@ export default function LeadsPage() {
                 Asistió
               </th>
               <th className="px-4 py-3 text-left text-gray-300 font-medium">
-                Estado
+                Acciones
               </th>
             </tr>
           </thead>
           <tbody>
-            {leads.map((lead, idx) => (
+            {leadsFiltrados.map((lead) => (
               <tr
-                key={idx}
+                key={`${lead.id}-${lead.asistio}-${lead.confirmo}`}
                 className="border-t border-gray-800 hover:bg-gray-800/30 transition-colors"
               >
                 <td className="px-4 py-3 text-gray-300 font-medium">
@@ -159,50 +202,77 @@ export default function LeadsPage() {
                     {lead.horario || "-"}
                   </div>
                 </td>
+
+                {/* Confirmó */}
                 <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                      lead.confirmo === "Sí"
-                        ? "bg-green-500/20 text-green-400"
-                        : "bg-yellow-500/20 text-yellow-400"
+                  <button
+                    onClick={() =>
+                      updateLead(
+                        lead.id,
+                        "confirmo",
+                        isConfirmado(lead) ? "Pendiente" : "Sí"
+                      )
+                    }
+                    disabled={updatingId === lead.id}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      isConfirmado(lead)
+                        ? "bg-green-500/20 text-green-400 border border-green-500/50"
+                        : "bg-gray-700 text-gray-400 hover:bg-green-500/20 hover:text-green-400"
                     }`}
                   >
-                    {lead.confirmo === "Sí" ? (
+                    {updatingId === lead.id ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : isConfirmado(lead) ? (
                       <CheckCircle className="w-3 h-3" />
                     ) : (
                       <XCircle className="w-3 h-3" />
                     )}
-                    {lead.confirmo || "Pendiente"}
-                  </span>
+                    {isConfirmado(lead) ? "Confirmó" : "Pendiente"}
+                  </button>
                 </td>
+
+                {/* Asistió */}
                 <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                      lead.asistio === "Sí"
-                        ? "bg-green-500/20 text-green-400"
-                        : "bg-yellow-500/20 text-yellow-400"
+                  <button
+                    onClick={() =>
+                      updateLead(
+                        lead.id,
+                        "asistio",
+                        isAsistio(lead) ? "Pendiente" : "Sí"
+                      )
+                    }
+                    disabled={updatingId === lead.id}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      isAsistio(lead)
+                        ? "bg-green-500/20 text-green-400 border border-green-500/50"
+                        : "bg-gray-700 text-gray-400 hover:bg-green-500/20 hover:text-green-400"
                     }`}
                   >
-                    {lead.asistio === "Sí" ? (
+                    {updatingId === lead.id ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : isAsistio(lead) ? (
                       <CheckCircle className="w-3 h-3" />
                     ) : (
                       <XCircle className="w-3 h-3" />
                     )}
-                    {lead.asistio || "Pendiente"}
-                  </span>
+                    {isAsistio(lead) ? "Asistió" : "Pendiente"}
+                  </button>
                 </td>
+
+                {/* Inscribir */}
                 <td className="px-4 py-3">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      lead.estado === "ACTIVO"
-                        ? "bg-green-500/20 text-green-400"
-                        : lead.estado === "INACTIVO"
-                        ? "bg-red-500/20 text-red-400"
-                        : "bg-blue-500/20 text-blue-400"
-                    }`}
+                  <button
+                    onClick={() => updateLead(lead.id, "estado", "ACTIVO")}
+                    disabled={updatingId === lead.id}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/20 text-primary hover:bg-primary/30 transition-colors disabled:opacity-50"
                   >
-                    {lead.estado || "NUEVO"}
-                  </span>
+                    {updatingId === lead.id ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <ThumbsUp className="w-3 h-3" />
+                    )}
+                    Inscribir
+                  </button>
                 </td>
               </tr>
             ))}

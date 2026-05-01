@@ -10,21 +10,31 @@ export async function POST(request) {
       return NextResponse.json({ error: "Falta id o campo" }, { status: 400 });
     }
 
-    const webhookUrl = process.env.MAKE_UPDATE_LEAD_WEBHOOK;
+    // Usar el MISMO webhook de siempre
+    const webhookUrl = process.env.MAKE_WEBHOOK_URL;
 
     if (!webhookUrl) {
-      console.error("❌ MAKE_UPDATE_LEAD_WEBHOOK no configurado");
+      console.error("❌ MAKE_WEBHOOK_URL no configurado");
       return NextResponse.json(
         { error: "Error de configuración" },
         { status: 500 }
       );
     }
 
-    // Enviar a MAKE
+    // Enviar al MISMO webhook, pero con tipo "update"
+    const payload = {
+      tipo: "update", // ← CLAVE: para que el router sepa qué hacer
+      id: id,
+      campo: campo,
+      valor: valor,
+    };
+
+    console.log("📤 Enviando a MAKE:", payload);
+
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, campo, valor }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

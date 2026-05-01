@@ -13,6 +13,7 @@ export async function POST(request) {
       );
     }
 
+    // Validar teléfono (10 dígitos para México)
     const telefonoLimpio = telefono.replace(/\D/g, "");
     if (telefonoLimpio.length < 10) {
       return Response.json(
@@ -21,26 +22,29 @@ export async function POST(request) {
       );
     }
 
+    // ID más único (evita duplicados)
+    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+
     const leadData = {
-      id: Date.now().toString(), // ID único basado en timestamp
-      fecha_creacion: new Date().toLocaleString("es-CL", {
-        timeZone: "America/Santiago",
+      id: id,
+      fecha_creacion: new Date().toLocaleString("es-MX", {
+        timeZone: "America/Mexico_City",
       }),
       nombre: nombre.trim(),
       telefono: telefonoLimpio,
       fecha_prueba: fecha,
       horario: horario,
-      estado: "NUEVO", // ← Cambió: antes era "Pendiente confirmación"
+      estado: "NUEVO",
       fuente: "Landing Page",
-      confirmo: "Pendiente", // ← NUEVO campo
-      asistio: "Pendiente", // ← NUEVO campo
-      plan: "", // ← Vacío hasta que se inscriba
-      precio: "", // ← Vacío hasta que se inscriba
-      fecha_pago: "", // ← Vacío hasta que pague
-      proximo_pago: "", // ← Vacío hasta que pague
-      recibio_url: "", // ← Vacío hasta que suba recibo
-      ultima_interaccion: new Date().toLocaleString("es-CL", {
-        timeZone: "America/Santiago",
+      confirmo: "Pendiente",
+      asistio: "Pendiente",
+      plan: "",
+      precio: "",
+      fecha_pago: "",
+      proximo_pago: "",
+      recibio_url: "",
+      ultima_interaccion: new Date().toLocaleString("es-MX", {
+        timeZone: "America/Mexico_City",
       }),
       actualizado_por: "sistema",
       notas: "",
