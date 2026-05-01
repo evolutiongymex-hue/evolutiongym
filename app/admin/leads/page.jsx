@@ -1,3 +1,4 @@
+// app/admin/leads/page.jsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,6 +11,7 @@ import {
   Phone,
   Clock,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 
 export default function LeadsPage() {
@@ -20,7 +22,8 @@ export default function LeadsPage() {
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/sheets?sheet=Leads");
+      // 🔥 SIN FILTRO para ver todos los datos primero
+      const response = await fetch("/api/sheets?sheet=CRM_Evolution_Gym");
       const data = await response.json();
 
       if (data.success) {
@@ -43,7 +46,8 @@ export default function LeadsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-400">Cargando leads...</div>
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <span className="ml-2 text-gray-400">Cargando leads...</span>
       </div>
     );
   }
@@ -63,20 +67,17 @@ export default function LeadsPage() {
     );
   }
 
-  const columnas = [
-    "ID",
-    "Fecha Consulta",
-    "Nombre",
-    "Teléfono",
-    "Fecha Prueba",
-    "Horario",
-    "Estado",
-    "Fuente",
-    "¿Confirmó?",
-    "¿Asistió?",
-    "Fecha Contacto",
-    "Notas",
-  ];
+  if (leads.length === 0) {
+    return (
+      <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-8 text-center">
+        <AlertCircle className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+        <p className="text-gray-400">No hay leads registrados aún</p>
+        <p className="text-gray-500 text-sm mt-2">
+          Los leads del formulario aparecerán aquí automáticamente
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -104,124 +105,110 @@ export default function LeadsPage() {
         </div>
       </div>
 
-      {leads.length === 0 ? (
-        <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-8 text-center">
-          <AlertCircle className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-          <p className="text-gray-400">No hay leads registrados aún</p>
-          <p className="text-gray-500 text-sm mt-2">
-            Los leads del formulario aparecerán aquí automáticamente
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-800/50 sticky top-0">
-              <tr>
-                {columnas.map((col, i) => (
-                  <th
-                    key={i}
-                    className="px-4 py-3 text-left text-gray-300 font-medium"
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-800/50 sticky top-0">
+            <tr>
+              <th className="px-4 py-3 text-left text-gray-300 font-medium">
+                Nombre
+              </th>
+              <th className="px-4 py-3 text-left text-gray-300 font-medium">
+                Teléfono
+              </th>
+              <th className="px-4 py-3 text-left text-gray-300 font-medium">
+                Fecha Prueba
+              </th>
+              <th className="px-4 py-3 text-left text-gray-300 font-medium">
+                Horario
+              </th>
+              <th className="px-4 py-3 text-left text-gray-300 font-medium">
+                Confirmó
+              </th>
+              <th className="px-4 py-3 text-left text-gray-300 font-medium">
+                Asistió
+              </th>
+              <th className="px-4 py-3 text-left text-gray-300 font-medium">
+                Estado
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {leads.map((lead, idx) => (
+              <tr
+                key={idx}
+                className="border-t border-gray-800 hover:bg-gray-800/30 transition-colors"
+              >
+                <td className="px-4 py-3 text-gray-300 font-medium">
+                  {lead.nombre || "-"}
+                </td>
+                <td className="px-4 py-3 text-gray-300">
+                  <div className="flex items-center gap-1">
+                    <Phone className="w-3 h-3 text-gray-500" />
+                    {lead.telefono || "-"}
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-gray-300">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-gray-500" />
+                    {lead.fecha_prueba || "-"}
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-gray-300">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-gray-500" />
+                    {lead.horario || "-"}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                      lead.confirmo === "Sí"
+                        ? "bg-green-500/20 text-green-400"
+                        : "bg-yellow-500/20 text-yellow-400"
+                    }`}
                   >
-                    {col}
-                  </th>
-                ))}
+                    {lead.confirmo === "Sí" ? (
+                      <CheckCircle className="w-3 h-3" />
+                    ) : (
+                      <XCircle className="w-3 h-3" />
+                    )}
+                    {lead.confirmo || "Pendiente"}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                      lead.asistio === "Sí"
+                        ? "bg-green-500/20 text-green-400"
+                        : "bg-yellow-500/20 text-yellow-400"
+                    }`}
+                  >
+                    {lead.asistio === "Sí" ? (
+                      <CheckCircle className="w-3 h-3" />
+                    ) : (
+                      <XCircle className="w-3 h-3" />
+                    )}
+                    {lead.asistio || "Pendiente"}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      lead.estado === "ACTIVO"
+                        ? "bg-green-500/20 text-green-400"
+                        : lead.estado === "INACTIVO"
+                        ? "bg-red-500/20 text-red-400"
+                        : "bg-blue-500/20 text-blue-400"
+                    }`}
+                  >
+                    {lead.estado || "NUEVO"}
+                  </span>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {leads.map((lead, idx) => {
-                // Determinar colores según estado
-                const confirmo =
-                  lead[8] === "Sí" ? "text-green-400" : "text-yellow-500";
-                const asistio =
-                  lead[9] === "Sí" ? "text-green-400" : "text-yellow-500";
-
-                return (
-                  <tr
-                    key={idx}
-                    className="border-t border-gray-800 hover:bg-gray-800/30 transition-colors"
-                  >
-                    {lead.map((cell, cellIdx) => {
-                      // Iconos especiales para ciertas columnas
-                      if (cellIdx === 3 && cell) {
-                        // Teléfono
-                        return (
-                          <td key={cellIdx} className="px-4 py-3 text-gray-300">
-                            <div className="flex items-center gap-1">
-                              <Phone className="w-3 h-3 text-gray-500" />
-                              {cell || "-"}
-                            </div>
-                          </td>
-                        );
-                      }
-                      if (cellIdx === 4 && cell) {
-                        // Fecha Prueba
-                        return (
-                          <td key={cellIdx} className="px-4 py-3 text-gray-300">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3 text-gray-500" />
-                              {cell || "-"}
-                            </div>
-                          </td>
-                        );
-                      }
-                      if (cellIdx === 5 && cell) {
-                        // Horario
-                        return (
-                          <td key={cellIdx} className="px-4 py-3 text-gray-300">
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3 text-gray-500" />
-                              {cell || "-"}
-                            </div>
-                          </td>
-                        );
-                      }
-                      if (cellIdx === 8) {
-                        // ¿Confirmó?
-                        return (
-                          <td key={cellIdx} className="px-4 py-3">
-                            <div
-                              className={`flex items-center gap-1 ${confirmo}`}
-                            >
-                              {cell === "Sí" ? (
-                                <CheckCircle className="w-4 h-4" />
-                              ) : (
-                                <XCircle className="w-4 h-4" />
-                              )}
-                              {cell || "Pendiente"}
-                            </div>
-                          </td>
-                        );
-                      }
-                      if (cellIdx === 9) {
-                        // ¿Asistió?
-                        return (
-                          <td key={cellIdx} className="px-4 py-3">
-                            <div
-                              className={`flex items-center gap-1 ${asistio}`}
-                            >
-                              {cell === "Sí" ? (
-                                <CheckCircle className="w-4 h-4" />
-                              ) : (
-                                <XCircle className="w-4 h-4" />
-                              )}
-                              {cell || "Pendiente"}
-                            </div>
-                          </td>
-                        );
-                      }
-                      return (
-                        <td key={cellIdx} className="px-4 py-3 text-gray-300">
-                          {cell || "-"}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

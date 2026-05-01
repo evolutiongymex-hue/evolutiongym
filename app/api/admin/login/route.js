@@ -1,5 +1,3 @@
-// app/api/admin/login/route.js
-
 export async function POST(request) {
     try {
       const body = await request.json();

@@ -1,5 +1,4 @@
 // app/api/submit-lead/route.js
-
 export async function POST(request) {
   console.log("📥 API Route recibió una solicitud");
 
@@ -7,23 +6,13 @@ export async function POST(request) {
     const body = await request.json();
     const { nombre, telefono, fecha, horario } = body;
 
-    // Validar campos
-    if (!nombre || !telefono || !horario) {
+    if (!nombre || !telefono || !horario || !fecha) {
       return Response.json(
         { error: "Todos los campos son obligatorios" },
         { status: 400 }
       );
     }
 
-    // Validar fecha
-    if (!fecha) {
-      return Response.json(
-        { error: "Debes seleccionar una fecha" },
-        { status: 400 }
-      );
-    }
-
-    // Validar teléfono (10 dígitos)
     const telefonoLimpio = telefono.replace(/\D/g, "");
     if (telefonoLimpio.length < 10) {
       return Response.json(
@@ -32,45 +21,42 @@ export async function POST(request) {
       );
     }
 
-    // Preparar datos para Google Sheets
     const leadData = {
-      fechaConsulta: new Date().toLocaleString("es-CL", {
+      id: Date.now().toString(), // ID único basado en timestamp
+      fecha_creacion: new Date().toLocaleString("es-CL", {
         timeZone: "America/Santiago",
       }),
       nombre: nombre.trim(),
       telefono: telefonoLimpio,
-      fechaPrueba: fecha,
+      fecha_prueba: fecha,
       horario: horario,
-      estado: "Pendiente confirmación",
+      estado: "NUEVO", // ← Cambió: antes era "Pendiente confirmación"
       fuente: "Landing Page",
-      asistio: "Pendiente",
+      confirmo: "Pendiente", // ← NUEVO campo
+      asistio: "Pendiente", // ← NUEVO campo
+      plan: "", // ← Vacío hasta que se inscriba
+      precio: "", // ← Vacío hasta que se inscriba
+      fecha_pago: "", // ← Vacío hasta que pague
+      proximo_pago: "", // ← Vacío hasta que pague
+      recibio_url: "", // ← Vacío hasta que suba recibo
+      ultima_interaccion: new Date().toLocaleString("es-CL", {
+        timeZone: "America/Santiago",
+      }),
+      actualizado_por: "sistema",
       notas: "",
     };
 
     console.log("📝 Datos preparados:", leadData);
 
-    // Obtener webhook de MAKE desde .env.local
     const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL;
 
-    // 🔥 CORRECCIÓN: Verificar si hay webhook REAL configurado
-    const esWebhookReal =
-      MAKE_WEBHOOK_URL &&
-      MAKE_WEBHOOK_URL !== "" &&
-      !MAKE_WEBHOOK_URL.includes("TU_WEBHOOK_ID_AQUI");
-
-    if (!esWebhookReal) {
-      // MODO DEMO: Solo simulamos
-      console.log("⚠️ MODO DEMO: Webhook no configurado, simulando envío");
-      console.log("📤 (Simulado) Datos guardados:", leadData);
-
+    if (!MAKE_WEBHOOK_URL || MAKE_WEBHOOK_URL.includes("TU_WEBHOOK_ID_AQUI")) {
+      console.log("⚠️ MODO DEMO:", leadData);
       return Response.json({
         success: true,
-        message: `✅ ¡Clase agendada para el ${fecha} en horario ${horario}! (Modo demo) Te contactaremos pronto.`,
+        message: `✅ ¡Clase agendada para el ${fecha} en horario ${horario}! (Modo demo)`,
       });
     }
-
-    // MODO REAL: Enviar a MAKE
-    console.log("📤 Enviando a MAKE real:", MAKE_WEBHOOK_URL);
 
     const response = await fetch(MAKE_WEBHOOK_URL, {
       method: "POST",
@@ -78,19 +64,14 @@ export async function POST(request) {
       body: JSON.stringify(leadData),
     });
 
-    if (!response.ok) {
-      throw new Error(`MAKE respondió con error: ${response.status}`);
-    }
-
-    console.log("✅ Datos enviados correctamente a MAKE");
+    if (!response.ok) throw new Error(`MAKE error: ${response.status}`);
 
     return Response.json({
       success: true,
       message: `✅ ¡Clase agendada para el ${fecha} en horario ${horario}! Te contactaremos para confirmar.`,
     });
   } catch (error) {
-    console.error("❌ Error:", error.message);
-
+    console.error("❌ Error:", error);
     return Response.json(
       { error: "Error al procesar tu solicitud. Intenta nuevamente." },
       { status: 500 }
