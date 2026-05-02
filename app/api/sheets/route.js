@@ -1,8 +1,33 @@
 // app/api/sheets/route.js
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import fs from "fs";
+import path from "path";
 
 export const runtime = "nodejs";
+
+// Función para obtener las credenciales según el entorno
+async function getAuth() {
+  // Detectar si estamos en Vercel (producción) o local
+  const isVercel = process.env.VERCEL === "1";
+
+  if (isVercel) {
+    // En Vercel: usar variable de entorno
+    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+    const auth = new google.auth.GoogleAuth({
+      credentials: credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    return await auth.getClient();
+  } else {
+    // En local: usar archivo
+    const auth = new google.auth.GoogleAuth({
+      keyFile: path.join(process.cwd(), "service-account.json"),
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    return await auth.getClient();
+  }
+}
 
 export async function GET(request) {
   try {
@@ -10,30 +35,21 @@ export async function GET(request) {
     const sheet = searchParams.get("sheet") || "CRM_Evolution_Gym";
     const estadoFiltro = searchParams.get("estado");
 
-    // Usar el archivo JSON de credenciales
-    const auth = new google.auth.GoogleAuth({
-      keyFile: "./service-account.json",
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-
-    const client = await auth.getClient();
+    const client = await getAuth();
     const sheets = google.sheets({ version: "v4", auth: client });
 
-    // Leer encabezados (fila 1)
     const headersRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
       range: `${sheet}!A1:R1`,
     });
     const headers = headersRes.data.values?.[0] || [];
 
-    // Leer datos (desde fila 2 hasta R)
     const dataRes = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
       range: `${sheet}!A2:R`,
     });
     const datos = dataRes.data.values || [];
 
-    // Convertir a objetos con nombres de columna
     let leads = datos.map((fila) => {
       const obj = {};
       headers.forEach((header, idx) => {
@@ -42,7 +58,6 @@ export async function GET(request) {
       return obj;
     });
 
-    // Filtrar por estado si viene el parámetro
     if (estadoFiltro) {
       leads = leads.filter((lead) => lead.estado === estadoFiltro);
     }
