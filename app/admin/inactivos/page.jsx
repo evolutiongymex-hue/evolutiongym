@@ -4,13 +4,12 @@ import { useEffect, useState } from "react";
 import {
   RefreshCw,
   Users,
-  Calendar,
-  Phone,
-  Clock,
   AlertCircle,
   Loader2,
   UserCheck,
   Trash2,
+  Search,
+  X,
 } from "lucide-react";
 
 export default function InactivosPage() {
@@ -18,6 +17,7 @@ export default function InactivosPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState("");
+  const [filtroNombre, setFiltroNombre] = useState("");
 
   const fetchInactivos = async () => {
     try {
@@ -26,7 +26,6 @@ export default function InactivosPage() {
       const data = await response.json();
 
       if (data.success) {
-        // Filtrar solo los que tienen estado = "INACTIVO"
         const inactivosFiltrados = data.data.filter(
           (lead) => lead.estado === "INACTIVO"
         );
@@ -36,7 +35,7 @@ export default function InactivosPage() {
         setError(data.error || "Error al cargar inactivos");
       }
     } catch (error) {
-      setError("Error de conexión");
+      setError("Error de conexión con el servidor");
     } finally {
       setLoading(false);
     }
@@ -48,25 +47,17 @@ export default function InactivosPage() {
 
   const updateLead = async (id, campo, valor) => {
     setUpdatingId(id);
-
-    // Actualizar visualmente
-    setInactivos((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [campo]: valor } : item))
-    );
-
     try {
       const response = await fetch("/api/leads/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, campo, valor }),
+        body: JSON.stringify({ tipo: "update", id, campo, valor }),
       });
-
-      if (!response.ok) {
+      if (response.ok) {
         await fetchInactivos();
       }
     } catch (error) {
-      console.error("Error:", error);
-      await fetchInactivos();
+      console.error(error);
     } finally {
       setUpdatingId(null);
     }
@@ -80,24 +71,37 @@ export default function InactivosPage() {
     ) {
       return;
     }
-
     setUpdatingId(id);
     try {
       const response = await fetch("/api/leads/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, campo: "estado", valor: "ELIMINADO" }),
+        body: JSON.stringify({
+          tipo: "update",
+          id: id,
+          campo: "estado",
+          valor: "ELIMINADO",
+        }),
       });
-
       if (response.ok) {
         await fetchInactivos();
+        alert("Registro eliminado correctamente");
       }
     } catch (error) {
-      console.error("Error:", error);
+      console.error(error);
     } finally {
       setUpdatingId(null);
     }
   };
+
+  const inactivosFiltrados = inactivos.filter((miembro) => {
+    if (
+      filtroNombre &&
+      !miembro.nombre?.toLowerCase().includes(filtroNombre.toLowerCase())
+    )
+      return false;
+    return true;
+  });
 
   if (loading) {
     return (
@@ -115,7 +119,7 @@ export default function InactivosPage() {
         <p className="text-sm">{error}</p>
         <button
           onClick={fetchInactivos}
-          className="mt-3 px-4 py-2 bg-red-500/20 rounded-lg text-sm"
+          className="mt-3 px-4 py-2 bg-red-500/20 rounded-lg"
         >
           Reintentar
         </button>
@@ -123,13 +127,14 @@ export default function InactivosPage() {
     );
   }
 
-  if (inactivos.length === 0) {
+  if (inactivosFiltrados.length === 0) {
     return (
       <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-8 text-center">
         <AlertCircle className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-        <p className="text-gray-400">No hay miembros inactivos</p>
-        <p className="text-gray-500 text-sm mt-2">
-          Los clientes que se den de baja aparecerán aquí
+        <p className="text-gray-400">
+          {filtroNombre
+            ? "No hay inactivos que coincidan con la búsqueda"
+            : "No hay miembros inactivos"}
         </p>
       </div>
     );
@@ -148,98 +153,86 @@ export default function InactivosPage() {
               Ex-miembros que ya no asisten
             </p>
             <p className="text-gray-500 text-xs mt-1">
-              Total: {inactivos.length} inactivos
+              Total: {inactivosFiltrados.length} inactivos
             </p>
           </div>
           <button
             onClick={fetchInactivos}
-            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm flex items-center gap-2"
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4 inline mr-2" />
             Actualizar
           </button>
+        </div>
+
+        <div className="mt-4 flex gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre..."
+              value={filtroNombre}
+              onChange={(e) => setFiltroNombre(e.target.value)}
+              className="pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 w-64 focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          {filtroNombre && (
+            <button
+              onClick={() => setFiltroNombre("")}
+              className="inline-flex items-center gap-1 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors"
+            >
+              <X className="w-4 h-4" />
+              Limpiar
+            </button>
+          )}
         </div>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-800/50 sticky top-0">
+          <thead className="bg-gray-800/50">
             <tr>
-              <th className="px-4 py-3 text-left text-gray-300 font-medium">
-                Nombre
-              </th>
-              <th className="px-4 py-3 text-left text-gray-300 font-medium">
-                Teléfono
-              </th>
-              <th className="px-4 py-3 text-left text-gray-300 font-medium">
-                Fecha Baja
-              </th>
-              <th className="px-4 py-3 text-left text-gray-300 font-medium">
-                Último Plan
-              </th>
-              <th className="px-4 py-3 text-left text-gray-300 font-medium">
-                Motivo
-              </th>
-              <th className="px-4 py-3 text-left text-gray-300 font-medium">
-                Acciones
-              </th>
+              <th className="px-4 py-3 text-left">Nombre</th>
+              <th className="px-4 py-3 text-left">Teléfono</th>
+              <th className="px-4 py-3 text-left">Fecha Baja</th>
+              <th className="px-4 py-3 text-left">Último Plan</th>
+              <th className="px-4 py-3 text-left">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {inactivos.map((miembro) => (
+            {inactivosFiltrados.map((miembro) => (
               <tr
                 key={miembro.id}
-                className="border-t border-gray-800 hover:bg-gray-800/30 transition-colors"
+                className="border-t border-gray-800 hover:bg-gray-800/30"
               >
-                <td className="px-4 py-3 text-gray-300 font-medium">
-                  {miembro.nombre || "-"}
+                <td className="px-4 py-3">{miembro.nombre || "-"}</td>
+                <td className="px-4 py-3">{miembro.telefono || "-"}</td>
+                <td className="px-4 py-3">
+                  {miembro.fecha_baja ||
+                    miembro.ultima_interaccion ||
+                    "No registrada"}
                 </td>
-                <td className="px-4 py-3 text-gray-300">
-                  <div className="flex items-center gap-1">
-                    <Phone className="w-3 h-3 text-gray-500" />
-                    {miembro.telefono || "-"}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-gray-300">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3 text-gray-500" />
-                    {miembro.fecha_baja ||
-                      miembro.ultima_interaccion ||
-                      "No registrada"}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-gray-300">
-                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-600/50 text-gray-300">
+                <td className="px-4 py-3">
+                  <span className="px-2 py-1 rounded-full text-xs bg-gray-600/50 text-gray-300">
                     {miembro.plan || "Sin plan"}
                   </span>
-                </td>
-                <td className="px-4 py-3 text-gray-300">
-                  {miembro.motivo_baja || "-"}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
                     <button
                       onClick={() => updateLead(miembro.id, "estado", "ACTIVO")}
                       disabled={updatingId === miembro.id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors disabled:opacity-50"
                     >
-                      {updatingId === miembro.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <UserCheck className="w-3 h-3" />
-                      )}
+                      <UserCheck className="w-3 h-3" />
                       Reactivar
                     </button>
                     <button
                       onClick={() => eliminarInactivo(miembro.id)}
                       disabled={updatingId === miembro.id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors disabled:opacity-50"
                     >
-                      {updatingId === miembro.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-3 h-3" />
-                      )}
+                      <Trash2 className="w-3 h-3" />
                       Eliminar
                     </button>
                   </div>
