@@ -61,7 +61,7 @@ const PorqueElegirnos = () => {
       id: 1,
       titulo: "Horarios Flexibles",
       descripcion:
-        "Entrena cuando quieras. Abrimos de 6am a 11pm, 7 días a la semana. Nos adaptamos a tu ritmo de vida.",
+        "Entrena cuando quieras. Abrimos de 7am a 10pm, 7 días a la semana. Nos adaptamos a tu ritmo de vida.",
       icono: (
         <svg
           className="w-10 h-10"
@@ -147,7 +147,7 @@ const PorqueElegirnos = () => {
           </h2>
 
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Más de 500 alumnos confían en nosotros. Descubre por qué.
+            Más de 100 alumnos confían en nosotros. Descubre por qué.
           </p>
         </div>
 

@@ -7,7 +7,7 @@ const BotonWhatsApp = () => {
   const [isVisible, setIsVisible] = useState(true);
 
   // Número del gimnasio (cambia por el número real)
-  const numeroTelefono = "56912345678"; // Formato: código país + número (sin +)
+  const numeroTelefono = "5655382350"; // Formato: código país + número (sin +)
 
   // Mensaje predefinido que enviará al hacer clic
   const mensajePredefinido =

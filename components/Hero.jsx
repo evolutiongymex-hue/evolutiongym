@@ -30,7 +30,7 @@ const Hero = () => {
 
   // Contador de alumnos
   const [alumnosCount, setAlumnosCount] = useState(0);
-  const targetAlumnos = 584;
+  const targetAlumnos = 184;
 
   // Efecto de tipeo (ligero, sin librerías externas)
   useEffect(() => {
@@ -167,7 +167,7 @@ const Hero = () => {
   };
 
   const abrirWhatsApp = () => {
-    const numeroTelefono = "56912345678"; // Cambia por el número real
+    const numeroTelefono = "5655382350"; // Cambia por el número real
     const mensaje =
       "Hola, quiero información sobre los planes y agendar una clase gratis";
     const url = `https://wa.me/${numeroTelefono}?text=${encodeURIComponent(
@@ -227,7 +227,7 @@ const Hero = () => {
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary" />
             </span>
             <span className="text-sm font-medium">
-              {alumnosCount > 0 ? `${alumnosCount}+` : "500+"} alumnos activos
+              {alumnosCount > 0 ? `${alumnosCount}+` : "200+"} alumnos activos
             </span>
           </div>
 

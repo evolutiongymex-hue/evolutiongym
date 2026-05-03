@@ -58,13 +58,12 @@ const Instalaciones = () => {
     return () => ctx.revert();
   }, []);
 
-  // Fotos del gimnasio (actualiza con tus imágenes reales)
   const fotos = [
     {
       id: 1,
       titulo: "Área de Pesas",
       descripcion: "Equipos de última generación para tus entrenamientos",
-      imagen: "/images/pesas.jpg", // Cambia por tu imagen real
+      imagen: "/images/pesas.jpg",
       categoria: "Pesas",
     },
     {

@@ -106,7 +106,7 @@ const Testimonios = () => {
         <div ref={titleRef} className="text-center mb-12">
           <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20">
             <span className="text-primary text-sm font-semibold">
-               CLIENTES FELICES
+              CLIENTES FELICES
             </span>
           </div>
 
@@ -155,19 +155,6 @@ const Testimonios = () => {
 
               {/* Información del cliente */}
               <div className="flex items-center gap-3">
-                {/* Foto o placeholder */}
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-lg overflow-hidden">
-                  {item.foto ? (
-                    <img
-                      src={item.foto}
-                      alt={item.nombre}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span>{item.iniciales}</span>
-                  )}
-                </div>
-
                 <div>
                   <h4 className="font-semibold text-white">{item.nombre}</h4>
                   <p className="text-gray-500 text-xs">
@@ -182,44 +169,6 @@ const Testimonios = () => {
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Estadísticas de satisfacción */}
-        <div className="mt-12 flex flex-wrap justify-center gap-8">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-primary">500+</div>
-            <div className="text-xs text-gray-500">Alumnos activos</div>
-          </div>
-          <div className="w-px h-10 bg-gray-800 my-auto" />
-          <div className="text-center">
-            <div className="text-3xl font-bold text-secondary">4.9</div>
-            <div className="text-xs text-gray-500">Calificación promedio</div>
-          </div>
-          <div className="w-px h-10 bg-gray-800 my-auto" />
-          <div className="text-center">
-            <div className="text-3xl font-bold text-primary">95%</div>
-            <div className="text-xs text-gray-500">Renovación anual</div>
-          </div>
-        </div>
-
-        {/* Botón para ver más reseñas */}
-        <div className="text-center mt-10">
-          <button className="inline-flex items-center gap-2 text-gray-400 hover:text-primary transition-colors text-sm">
-            Ver más reseñas en Google
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-              />
-            </svg>
-          </button>
         </div>
       </div>
     </section>

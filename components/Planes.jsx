@@ -17,7 +17,6 @@ const Planes = () => {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Título más suave
       gsap.fromTo(
         titleRef.current,
         { opacity: 0, y: 30 },
@@ -34,7 +33,6 @@ const Planes = () => {
         }
       );
 
-      // Tarjetas con stagger más sutil
       cardsRef.current.forEach((card, index) => {
         gsap.fromTo(
           card,
@@ -60,9 +58,9 @@ const Planes = () => {
 
   const planes = [
     {
-      id: "dia",
-      nombre: "Por Día",
-      precio: "$6.900",
+      id: "visita",
+      nombre: "Visita",
+      precio: "$50",
       periodo: "día",
       descripcion: "Perfecto para probar",
       ahorro: null,
@@ -76,21 +74,20 @@ const Planes = () => {
       borderColor: "border-gray-700",
       btnColor: "bg-gray-700 hover:bg-gray-600",
       popular: false,
-      badge: "🔑 PRUEBA",
+      badge: "🎟️ VISITA",
     },
     {
-      id: "mensual",
-      nombre: "Mensual",
-      precio: "$39.900",
-      periodo: "mes",
-      descripcion: "El más elegido",
+      id: "semanal",
+      nombre: "Semanal",
+      precio: "$150",
+      periodo: "semana",
+      descripcion: "Ideal para empezar",
       ahorro: null,
       incluye: [
-        "Acceso 24/7",
+        "Acceso por 7 días",
         "Todas las máquinas",
         "Lockers y duchas",
         "Clases grupales",
-        "App exclusiva",
         "Sin permanencia",
       ],
       color: "from-primary/10 to-secondary/10",
@@ -100,15 +97,14 @@ const Planes = () => {
       badge: "🔥 MÁS POPULAR",
     },
     {
-      id: "trimestral",
-      nombre: "Trimestral",
-      precio: "$99.900",
-      periodo: "3 meses",
+      id: "bimestral",
+      nombre: "Bimestral",
+      precio: "$600",
+      periodo: "2 meses",
       descripcion: "Ahorro garantizado",
-      ahorro: "Ahorras $20.000",
+      ahorro: "Ahorras $300",
       incluye: [
-        "Todo del plan Mensual",
-        "1 mes gratis",
+        "Todo del plan Semanal",
         "Evaluación física",
         "Estacionamiento gratis",
         "Nutricionista 1 vez",
@@ -120,32 +116,51 @@ const Planes = () => {
       badge: "💰 AHORRA",
     },
     {
-      id: "anual",
-      nombre: "Anual",
-      precio: "$359.900",
-      periodo: "año",
+      id: "trimestral",
+      nombre: "Trimestral",
+      precio: "$800",
+      periodo: "3 meses",
       descripcion: "Super ahorro",
-      ahorro: "Ahorras $119.000",
+      ahorro: "Ahorras $550",
+      incluye: [
+        "Todo del plan Bimestral",
+        "App exclusiva",
+        "Eventos exclusivos",
+        "Invitado gratis 1 vez",
+      ],
+      color: "from-gray-800/50 to-gray-900/50",
+      borderColor: "border-gray-700",
+      btnColor: "bg-gray-700 hover:bg-gray-600",
+      popular: false,
+      badge: "🏆 RECOMENDADO",
+    },
+    {
+      id: "anual",
+      nombre: "Anualidad",
+      precio: "$3,500",
+      periodo: "año",
+      descripcion: "Máximo ahorro",
+      ahorro: "Ahorras $3,000",
       incluye: [
         "Todo del plan Trimestral",
         "2 meses gratis",
         "Camiseta oficial",
         "Congelación hasta 2 meses",
-        "Eventos exclusivos",
         "10% off en tienda",
       ],
       color: "from-gray-800/50 to-gray-900/50",
       borderColor: "border-gray-700",
       btnColor: "bg-gray-700 hover:bg-gray-600",
       popular: false,
-      badge: "🏆 SUPER AHORRO",
+      badge: "💎 MEJOR OFERTA",
     },
   ];
 
   const getPrecioPorDia = (precio, periodo) => {
     const precioNum = parseInt(precio.replace(/[^0-9]/g, ""));
     if (periodo === "día") return precioNum;
-    if (periodo === "mes") return Math.round(precioNum / 30);
+    if (periodo === "semana") return Math.round(precioNum / 7);
+    if (periodo === "2 meses") return Math.round(precioNum / 60);
     if (periodo === "3 meses") return Math.round(precioNum / 90);
     if (periodo === "año") return Math.round(precioNum / 365);
     return 0;
@@ -161,7 +176,6 @@ const Planes = () => {
   return (
     <section ref={sectionRef} className="py-20 px-4" id="planes">
       <div className="max-w-7xl mx-auto">
-        {/* Título de sección - más limpio */}
         <div ref={titleRef} className="text-center mb-12">
           <div className="inline-flex items-center gap-2 mb-3 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
             <span className="text-primary text-xs font-semibold tracking-wide">
@@ -181,8 +195,7 @@ const Planes = () => {
           </p>
         </div>
 
-        {/* Grid de planes */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
           {planes.map((plan, index) => {
             const precioPorDia = getPrecioPorDia(plan.precio, plan.periodo);
 
@@ -206,7 +219,6 @@ const Planes = () => {
                   }
                 `}
               >
-                {/* Badge flotante */}
                 <div
                   className={`
                     absolute top-3 right-3 z-10
@@ -222,9 +234,7 @@ const Planes = () => {
                   {plan.badge}
                 </div>
 
-                {/* Contenido */}
                 <div className="p-5">
-                  {/* Nombre y precio */}
                   <div className="text-center mb-4">
                     <h3 className="text-lg font-bold mb-0.5">{plan.nombre}</h3>
                     <p className="text-gray-500 text-[11px] mb-2">
@@ -252,7 +262,6 @@ const Planes = () => {
 
                   <div className="h-px bg-gray-700/50 my-3" />
 
-                  {/* Incluye - más compacto */}
                   <ul className="space-y-1.5 mb-4">
                     {plan.incluye.slice(0, 5).map((item, i) => (
                       <li
@@ -282,7 +291,6 @@ const Planes = () => {
                     )}
                   </ul>
 
-                  {/* Botón CTA */}
                   <button
                     onClick={scrollToFormulario}
                     className={`
@@ -305,7 +313,6 @@ const Planes = () => {
           })}
         </div>
 
-        {/* Aviso de transparencia - más compacto */}
         <div className="text-center mt-10">
           <p className="text-gray-500 text-xs flex items-center justify-center gap-3 flex-wrap">
             <span className="flex items-center gap-1">
@@ -332,7 +339,6 @@ const Planes = () => {
         </div>
       </div>
 
-      {/* Modal de confirmación rápida (opcional) */}
       {selectedPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-gray-900 rounded-xl max-w-sm w-full p-6 border border-gray-700">

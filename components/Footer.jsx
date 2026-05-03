@@ -79,7 +79,7 @@ const Footer = () => {
                 </svg>
               </a>
               <a
-                href="#"
+                href="https://www.instagram.com/evolutiongymneza/"
                 className="w-9 h-9 rounded-full bg-gray-800 hover:bg-primary transition-colors duration-300 flex items-center justify-center group"
               >
                 <svg
@@ -91,7 +91,7 @@ const Footer = () => {
                 </svg>
               </a>
               <a
-                href="#"
+                href="evolutiongymex@gmail.com"
                 className="w-9 h-9 rounded-full bg-gray-800 hover:bg-primary transition-colors duration-300 flex items-center justify-center group"
               >
                 <svg
@@ -160,15 +160,15 @@ const Footer = () => {
             <ul className="space-y-2">
               <li className="flex justify-between text-sm">
                 <span className="text-gray-400">Lunes a Viernes</span>
-                <span className="text-white">6:00 - 23:00</span>
+                <span className="text-white">7:00 - 22:00</span>
               </li>
               <li className="flex justify-between text-sm">
                 <span className="text-gray-400">Sábados</span>
-                <span className="text-white">8:00 - 20:00</span>
+                <span className="text-white">8:00 - 13:00</span>
               </li>
               <li className="flex justify-between text-sm">
                 <span className="text-gray-400">Domingos</span>
-                <span className="text-white">9:00 - 18:00</span>
+                <span className="text-white">8:00 - 13:00</span>
               </li>
             </ul>
             <div className="mt-4 p-3 rounded-lg bg-primary/10 border border-primary/20">
@@ -203,7 +203,7 @@ const Footer = () => {
                   />
                 </svg>
                 <span className="text-gray-400">
-                  Av. Las Condes 1234, Santiago
+                  Angel del Campo #69, Nezahualcóyotl, Mexico, 57620
                 </span>
               </li>
               <li className="flex items-center gap-3 text-sm">
@@ -220,7 +220,7 @@ const Footer = () => {
                     d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                   />
                 </svg>
-                <span className="text-gray-400">+56 9 1234 5678</span>
+                <span className="text-gray-400">5655382350</span>
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <svg
@@ -236,12 +236,12 @@ const Footer = () => {
                     d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                   />
                 </svg>
-                <span className="text-gray-400">info@evolutiongym.cl</span>
+                <span className="text-gray-400">evolutiongymex@gmail.com</span>
               </li>
             </ul>
 
             <a
-              href="https://wa.me/56912345678?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20los%20planes"
+              href="https://wa.me/5655382350?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20los%20planes"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 bg-green-600 hover:bg-green-700 rounded-lg transition-all duration-300 text-white text-sm font-semibold"
