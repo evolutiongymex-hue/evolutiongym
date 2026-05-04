@@ -33,14 +33,12 @@ export default function RootLayout({ children }) {
       <body className="bg-background text-white font-sans antialiased">
         <Background />
 
-        {/* Mostrar Header SOLO si NO es admin */}
         <div className="admin-hide">
           <Header />
         </div>
 
         <div className="relative z-10">{children}</div>
 
-        {/* Mostrar Botón WhatsApp SOLO si NO es admin */}
         <div className="admin-hide">
           <BotonWhatsApp />
           <Footer />
