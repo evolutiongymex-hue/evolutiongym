@@ -18,7 +18,7 @@ const poppins = Poppins({
 });
 
 export const metadata = {
-  title: "Evolution Gym - Tu mejor versión comienza aquí",
+  title: "Evolution Gym",
   description:
     "Entrena con nosotros y alcanza tus metas. Planes flexibles, horarios 24/7 y asesoría incluida.",
 };
