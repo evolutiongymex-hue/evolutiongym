@@ -65,7 +65,9 @@ export default function ActivosPage() {
 
   const calcularProximoPago = (fechaPago, plan) => {
     if (!fechaPago) return "";
-    const fecha = new Date(fechaPago);
+    const [año, mes, dia] = fechaPago.split("-").map(Number);
+    const fecha = new Date(año, mes - 1, dia); // Crear fecha localmente
+
     switch (plan) {
       case "Visita":
         fecha.setDate(fecha.getDate() + 1);
@@ -85,13 +87,23 @@ export default function ActivosPage() {
       default:
         fecha.setMonth(fecha.getMonth() + 1);
     }
-    return fecha.toISOString().split("T")[0];
+
+    const añoNuevo = fecha.getFullYear();
+    const mesNuevo = String(fecha.getMonth() + 1).padStart(2, "0");
+    const diaNuevo = String(fecha.getDate()).padStart(2, "0");
+    return `${añoNuevo}-${mesNuevo}-${diaNuevo}`;
   };
 
   const abrirModalPago = (miembro) => {
+    const hoy = new Date();
+    const año = hoy.getFullYear();
+    const mes = String(hoy.getMonth() + 1).padStart(2, "0");
+    const dia = String(hoy.getDate()).padStart(2, "0");
+    const hoyStr = `${año}-${mes}-${dia}`;
+
     setSelectedMember(miembro);
     setPaymentData({
-      fecha_pago: new Date().toISOString().split("T")[0],
+      fecha_pago: hoyStr,
       plan: miembro.plan || "Mensual",
       recibo_url: "",
       metodo_pago: "transferencia",
