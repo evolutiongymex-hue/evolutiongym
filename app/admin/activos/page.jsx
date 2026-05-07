@@ -25,6 +25,7 @@ export default function ActivosPage() {
     fecha_pago: "",
     plan: "",
     recibo_url: "",
+    metodo_pago: "transferencia", // NUEVO
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -56,7 +57,7 @@ export default function ActivosPage() {
 
   const preciosPorPlan = {
     Visita: 50,
-    Semanal: 150,
+    Mensual: 350,
     Bimestral: 600,
     Trimestral: 800,
     Anualidad: 3500,
@@ -69,8 +70,8 @@ export default function ActivosPage() {
       case "Visita":
         fecha.setDate(fecha.getDate() + 1);
         break;
-      case "Semanal":
-        fecha.setDate(fecha.getDate() + 7);
+      case "Mensual":
+        fecha.setDate(fecha.getDate() + 30);
         break;
       case "Bimestral":
         fecha.setMonth(fecha.getMonth() + 2);
@@ -91,8 +92,9 @@ export default function ActivosPage() {
     setSelectedMember(miembro);
     setPaymentData({
       fecha_pago: new Date().toISOString().split("T")[0],
-      plan: miembro.plan || "Semanal",
+      plan: miembro.plan || "Mensual",
       recibo_url: "",
+      metodo_pago: "transferencia",
     });
     setShowPaymentModal(true);
   };
@@ -115,7 +117,8 @@ export default function ActivosPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/leads/update", {
+      // 1. Actualizar el lead
+      const updateResponse = await fetch("/api/leads/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -126,10 +129,28 @@ export default function ActivosPage() {
           plan: paymentData.plan,
           precio: precio,
           recibo_url: paymentData.recibo_url || "",
+          metodo_pago: paymentData.metodo_pago,
         }),
       });
 
-      if (response.ok) {
+      // 2. Guardar en tabla PAGOS
+      const pagoResponse = await fetch("/api/pagos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cliente_id: selectedMember.id,
+          nombre: selectedMember.nombre,
+          fecha_pago: paymentData.fecha_pago,
+          monto: precio,
+          metodo_pago: paymentData.metodo_pago,
+          plan: paymentData.plan,
+          meses: 1,
+          promocion: "",
+          usuario: "admin",
+        }),
+      });
+
+      if (updateResponse.ok && pagoResponse.ok) {
         await fetchActivos();
         setShowPaymentModal(false);
         alert("Pago registrado correctamente");
@@ -137,6 +158,7 @@ export default function ActivosPage() {
         alert("Error al registrar pago");
       }
     } catch (error) {
+      console.error(error);
       alert("Error de conexion");
     } finally {
       setIsSubmitting(false);
@@ -327,12 +349,31 @@ export default function ActivosPage() {
                   className="w-full p-2 bg-gray-800 rounded-lg border border-gray-700"
                 >
                   <option value="Visita">Visita - $50</option>
-                  <option value="Semanal">Semanal - $150</option>
+                  <option value="Mensual">Mensual - $350</option>
                   <option value="Bimestral">Bimestral - $600</option>
                   <option value="Trimestral">Trimestral - $800</option>
                   <option value="Anualidad">Anualidad - $3,500</option>
                 </select>
               </div>
+
+              {/* NUEVO: Método de Pago */}
+              <div>
+                <label className="block text-sm mb-1">Método de Pago</label>
+                <select
+                  value={paymentData.metodo_pago}
+                  onChange={(e) =>
+                    setPaymentData({
+                      ...paymentData,
+                      metodo_pago: e.target.value,
+                    })
+                  }
+                  className="w-full p-2 bg-gray-800 rounded-lg border border-gray-700"
+                >
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm mb-1">Fecha de Pago</label>
                 <input
@@ -347,6 +388,7 @@ export default function ActivosPage() {
                   className="w-full p-2 bg-gray-800 rounded-lg border border-gray-700"
                 />
               </div>
+
               <div>
                 <label className="block text-sm mb-1">Recibo (URL)</label>
                 <input
@@ -362,6 +404,7 @@ export default function ActivosPage() {
                   className="w-full p-2 bg-gray-800 rounded-lg border border-gray-700"
                 />
               </div>
+
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={registrarPago}

@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Users, Activity, UserX, LogOut, Dumbbell } from "lucide-react";
+import {
+  Users,
+  Activity,
+  UserX,
+  LogOut,
+  Dumbbell,
+  DollarSign,
+} from "lucide-react";
 
 export default function AdminLayout({ children }) {
   const router = useRouter();
@@ -82,16 +89,22 @@ export default function AdminLayout({ children }) {
 
   const menuItems = [
     {
-      name: "LEADS",
-      href: "/admin/leads",
-      icon: Users,
-      color: "text-blue-400",
+      name: "CAJA",
+      href: "/admin/caja",
+      icon: DollarSign,
+      color: "text-yellow-400",
     },
     {
       name: "ACTIVOS",
       href: "/admin/activos",
       icon: Activity,
       color: "text-green-400",
+    },
+    {
+      name: "LEADS",
+      href: "/admin/leads",
+      icon: Users,
+      color: "text-blue-400",
     },
     {
       name: "INACTIVOS",

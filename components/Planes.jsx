@@ -78,13 +78,13 @@ const Planes = () => {
     },
     {
       id: "semanal",
-      nombre: "Semanal",
-      precio: "$150",
-      periodo: "semana",
+      nombre: "Mensual",
+      precio: "$350",
+      periodo: "mensual",
       descripcion: "Ideal para empezar",
       ahorro: null,
       incluye: [
-        "Acceso por 7 días",
+        "Acceso por 30 días",
         "Todas las máquinas",
         "Lockers y duchas",
         "Clases grupales",
