@@ -8,6 +8,7 @@ import {
   Calendar,
   Download,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 
 export default function CajaPage() {
@@ -27,7 +28,6 @@ export default function CajaPage() {
       const data = await response.json();
 
       if (data.success) {
-        // Zona horaria CDMX
         const hoy = new Date();
         const hoyStr = hoy.toLocaleDateString("en-CA", {
           timeZone: "America/Mexico_City",
@@ -73,7 +73,15 @@ export default function CajaPage() {
   }, [filtro]);
 
   const exportarCSV = () => {
-    const headers = ["ID", "Cliente", "Fecha", "Monto", "Metodo", "Plan"];
+    const headers = [
+      "ID",
+      "Cliente",
+      "Fecha",
+      "Monto",
+      "Metodo",
+      "Plan",
+      "Recibo",
+    ];
     const filas = pagos.map((p) => [
       p.id,
       p.nombre,
@@ -81,6 +89,7 @@ export default function CajaPage() {
       p.monto,
       p.metodo_pago,
       p.plan,
+      p.recibo_url || "",
     ]);
 
     const csvContent = [headers, ...filas]
@@ -201,13 +210,14 @@ export default function CajaPage() {
                 <th className="px-4 py-3 text-left text-gray-300">Cliente</th>
                 <th className="px-4 py-3 text-left text-gray-300">Plan</th>
                 <th className="px-4 py-3 text-left text-gray-300">Monto</th>
-                <th className="px-4 py-3 text-left text-gray-300">Método</th>
+                <th className="px-4 py-3 text-left text-gray-300">Metodo</th>
+                <th className="px-4 py-3 text-left text-gray-300">Recibo</th>
               </tr>
             </thead>
             <tbody>
               {pagos.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-8 text-gray-400">
+                  <td colSpan="6" className="text-center py-8 text-gray-400">
                     No hay pagos registrados{" "}
                     {filtro === "dia" ? "hoy" : "esta semana"}
                   </td>
@@ -238,6 +248,21 @@ export default function CajaPage() {
                           ? "Efectivo"
                           : "Transferencia"}
                       </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {pago.recibo_url ? (
+                        <a
+                          href={pago.recibo_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Ver Recibo
+                        </a>
+                      ) : (
+                        <span className="text-gray-500 text-xs">-</span>
+                      )}
                     </td>
                   </tr>
                 ))

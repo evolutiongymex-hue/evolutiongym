@@ -68,7 +68,7 @@ export async function POST(request) {
 
     return Response.json({
       success: true,
-      message: `✅ ¡Clase agendada para el ${fecha} en horario ${horario}! Te contactaremos para confirmar.`,
+      message: `¡Clase agendada para el ${fecha} en horario ${horario}! Te contactaremos para confirmar.`,
     });
   } catch (error) {
     console.error("❌ Error:", error);

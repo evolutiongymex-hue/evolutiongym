@@ -4,7 +4,6 @@ import { google } from "googleapis";
 
 export const runtime = "nodejs";
 
-// Función para obtener el cliente autenticado
 async function getAuthClient() {
   const auth = new google.auth.GoogleAuth({
     keyFile: "./service-account.json",
@@ -44,9 +43,9 @@ export async function POST(request) {
       range: "PAGOS!A:A",
     });
     const lastRow = response.data.values?.length || 1;
-    const nuevoId = lastRow;
+    const nuevoId = lastRow; // El ID es el número de fila
 
-    // Guardar pago
+    // Guardar pago (sin recibo_url por ahora)
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
       range: "PAGOS!A:K",
@@ -64,13 +63,14 @@ export async function POST(request) {
             meses || 1,
             promocion || "",
             usuario || "admin",
-            "", // recibo_url
+            "", // recibo_url (se actualizará después)
           ],
         ],
       },
     });
 
-    return NextResponse.json({ success: true });
+    // Devolver el ID para que el frontend genere el recibo_url
+    return NextResponse.json({ success: true, id: nuevoId });
   } catch (error) {
     console.error("Error al guardar pago:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -96,7 +96,6 @@ export async function GET(request) {
       return NextResponse.json({ success: true, data: [], total: 0 });
     }
 
-    // Saltar encabezados
     const datos = pagos.slice(1);
     let resultados = datos.map((row) => ({
       id: row[0],
@@ -112,12 +111,10 @@ export async function GET(request) {
       recibo_url: row[10],
     }));
 
-    // Filtrar por fecha
     if (fecha) {
       resultados = resultados.filter((p) => p.fecha_pago === fecha);
     }
 
-    // Filtrar por método
     if (metodo) {
       resultados = resultados.filter((p) => p.metodo_pago === metodo);
     }

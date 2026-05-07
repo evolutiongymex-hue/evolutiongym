@@ -24,8 +24,7 @@ export default function ActivosPage() {
   const [paymentData, setPaymentData] = useState({
     fecha_pago: "",
     plan: "",
-    recibo_url: "",
-    metodo_pago: "transferencia", // NUEVO
+    metodo_pago: "transferencia",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -66,7 +65,7 @@ export default function ActivosPage() {
   const calcularProximoPago = (fechaPago, plan) => {
     if (!fechaPago) return "";
     const [año, mes, dia] = fechaPago.split("-").map(Number);
-    const fecha = new Date(año, mes - 1, dia); // Crear fecha localmente
+    const fecha = new Date(año, mes - 1, dia);
 
     switch (plan) {
       case "Visita":
@@ -105,7 +104,6 @@ export default function ActivosPage() {
     setPaymentData({
       fecha_pago: hoyStr,
       plan: miembro.plan || "Mensual",
-      recibo_url: "",
       metodo_pago: "transferencia",
     });
     setShowPaymentModal(true);
@@ -129,23 +127,6 @@ export default function ActivosPage() {
 
     setIsSubmitting(true);
     try {
-      // 1. Actualizar el lead
-      const updateResponse = await fetch("/api/leads/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tipo: "pago_completo",
-          id: selectedMember.id,
-          fecha_pago: paymentData.fecha_pago,
-          proximo_pago: proximoPago,
-          plan: paymentData.plan,
-          precio: precio,
-          recibo_url: paymentData.recibo_url || "",
-          metodo_pago: paymentData.metodo_pago,
-        }),
-      });
-
-      // 2. Guardar en tabla PAGOS
       const pagoResponse = await fetch("/api/pagos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -162,10 +143,35 @@ export default function ActivosPage() {
         }),
       });
 
+      const pagoData = await pagoResponse.json();
+      const pagoId = pagoData.id;
+      const reciboUrl = process.env.NEXT_PUBLIC_APP_URL + "/recibo/" + pagoId;
+
+      await fetch("/api/pagos/" + pagoId + "/recibo", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recibo_url: reciboUrl }),
+      });
+
+      const updateResponse = await fetch("/api/leads/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "pago_completo",
+          id: selectedMember.id,
+          fecha_pago: paymentData.fecha_pago,
+          proximo_pago: proximoPago,
+          plan: paymentData.plan,
+          precio: precio,
+          recibo_url: reciboUrl,
+          metodo_pago: paymentData.metodo_pago,
+        }),
+      });
+
       if (updateResponse.ok && pagoResponse.ok) {
         await fetchActivos();
         setShowPaymentModal(false);
-        alert("Pago registrado correctamente");
+        alert("Pago registrado correctamente. Recibo: " + reciboUrl);
       } else {
         alert("Error al registrar pago");
       }
@@ -315,7 +321,7 @@ export default function ActivosPage() {
                 </td>
                 <td className="px-4 py-3">
                   {miembro.precio
-                    ? `$${Number(miembro.precio).toLocaleString()}`
+                    ? "$" + Number(miembro.precio).toLocaleString()
                     : "-"}
                 </td>
                 <td className="px-4 py-3">{miembro.fecha_pago || "-"}</td>
@@ -368,9 +374,8 @@ export default function ActivosPage() {
                 </select>
               </div>
 
-              {/* NUEVO: Método de Pago */}
               <div>
-                <label className="block text-sm mb-1">Método de Pago</label>
+                <label className="block text-sm mb-1">Metodo de Pago</label>
                 <select
                   value={paymentData.metodo_pago}
                   onChange={(e) =>
@@ -395,22 +400,6 @@ export default function ActivosPage() {
                     setPaymentData({
                       ...paymentData,
                       fecha_pago: e.target.value,
-                    })
-                  }
-                  className="w-full p-2 bg-gray-800 rounded-lg border border-gray-700"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Recibo (URL)</label>
-                <input
-                  type="text"
-                  placeholder="https://drive.google.com/..."
-                  value={paymentData.recibo_url}
-                  onChange={(e) =>
-                    setPaymentData({
-                      ...paymentData,
-                      recibo_url: e.target.value,
                     })
                   }
                   className="w-full p-2 bg-gray-800 rounded-lg border border-gray-700"
