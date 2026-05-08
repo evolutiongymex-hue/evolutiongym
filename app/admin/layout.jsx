@@ -10,6 +10,7 @@ import {
   LogOut,
   Dumbbell,
   DollarSign,
+  Package
 } from "lucide-react";
 
 export default function AdminLayout({ children }) {
@@ -111,6 +112,12 @@ export default function AdminLayout({ children }) {
       href: "/admin/inactivos",
       icon: UserX,
       color: "text-gray-400",
+    },
+    {
+      name: "INVENTARIO",
+      href: "/admin/inventario",
+      icon: Package,
+      color: "text-purple-400",
     },
   ];
 
