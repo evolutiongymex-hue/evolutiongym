@@ -1,15 +1,30 @@
 // app/api/pagos/route.js
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import fs from "fs";
+import path from "path";
 
 export const runtime = "nodejs";
 
 async function getAuthClient() {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: "./service-account.json",
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-  return await auth.getClient();
+  const isVercel = process.env.VERCEL === "1";
+
+  if (isVercel) {
+    // En Vercel: usar variable de entorno
+    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    return await auth.getClient();
+  } else {
+    // En local: usar archivo
+    const auth = new google.auth.GoogleAuth({
+      keyFile: path.join(process.cwd(), "service-account.json"),
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    return await auth.getClient();
+  }
 }
 
 export async function POST(request) {
@@ -37,15 +52,13 @@ export async function POST(request) {
     const auth = await getAuthClient();
     const sheets = google.sheets({ version: "v4", auth });
 
-    // Obtener última fila
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
       range: "PAGOS!A:A",
     });
     const lastRow = response.data.values?.length || 1;
-    const nuevoId = lastRow; // El ID es el número de fila
+    const nuevoId = lastRow;
 
-    // Guardar pago (sin recibo_url por ahora)
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
       range: "PAGOS!A:K",
@@ -63,13 +76,12 @@ export async function POST(request) {
             meses || 1,
             promocion || "",
             usuario || "admin",
-            "", // recibo_url (se actualizará después)
+            "", // recibo_url
           ],
         ],
       },
     });
 
-    // Devolver el ID para que el frontend genere el recibo_url
     return NextResponse.json({ success: true, id: nuevoId });
   } catch (error) {
     console.error("Error al guardar pago:", error);

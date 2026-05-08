@@ -1,15 +1,30 @@
 // app/api/pagos/[id]/route.js
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import fs from "fs";
+import path from "path";
 
 export const runtime = "nodejs";
 
 async function getAuthClient() {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: "./service-account.json",
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-  return await auth.getClient();
+  const isVercel = process.env.VERCEL === "1";
+
+  if (isVercel) {
+    // En Vercel: usar variable de entorno
+    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    return await auth.getClient();
+  } else {
+    // En local: usar archivo
+    const auth = new google.auth.GoogleAuth({
+      keyFile: path.join(process.cwd(), "service-account.json"),
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
+    return await auth.getClient();
+  }
 }
 
 export async function GET(request, { params }) {
