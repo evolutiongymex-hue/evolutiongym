@@ -10,7 +10,7 @@ import {
   LogOut,
   Dumbbell,
   DollarSign,
-  Package
+  Package,
 } from "lucide-react";
 
 export default function AdminLayout({ children }) {
@@ -90,6 +90,12 @@ export default function AdminLayout({ children }) {
 
   const menuItems = [
     {
+      name: "INVENTARIO",
+      href: "/admin/inventario",
+      icon: Package,
+      color: "text-purple-400",
+    },
+    {
       name: "CAJA",
       href: "/admin/caja",
       icon: DollarSign,
@@ -113,12 +119,6 @@ export default function AdminLayout({ children }) {
       icon: UserX,
       color: "text-gray-400",
     },
-    {
-      name: "INVENTARIO",
-      href: "/admin/inventario",
-      icon: Package,
-      color: "text-purple-400",
-    },
   ];
 
   const handleLogout = () => {
@@ -132,9 +132,6 @@ export default function AdminLayout({ children }) {
       <div className="fixed left-0 top-0 h-full w-64 bg-gray-900 border-r border-gray-800">
         <div className="p-6 border-b border-gray-800">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
-              <Dumbbell className="w-4 h-4 text-white" />
-            </div>
             <div>
               <h1 className="text-lg font-bold">
                 <span className="text-white">EVOLUTION</span>

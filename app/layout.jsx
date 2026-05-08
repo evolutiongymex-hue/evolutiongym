@@ -1,4 +1,3 @@
-// app/layout.jsx
 import { Inter, Poppins } from "next/font/google";
 import Background from "../components/Background";
 import Header from "../components/Header";
@@ -18,16 +17,66 @@ const poppins = Poppins({
 });
 
 export const metadata = {
-  title: "Evolution Gym",
+  title: {
+    default: "Evolution Gym",
+    template: "%s | Evolution Gym",
+  },
   description:
-    "Entrena con nosotros y alcanza tus metas. Planes flexibles, horarios 24/7 y asesoría incluida.",
+    "Entrena con nosotros y alcanza tus metas. Planes desde $350 MXN, horarios 24/7 y asesoría incluida. ¡Agenda tu clase gratis!",
+  keywords:
+    "gimnasio, fitness, entrenamiento, pesas, cardio, crossfit, boxeo, membresía gym, Evolution Gym, Neza",
+  authors: [{ name: "Evolution Gym", url: "https://evolutiongymneza.com" }],
+  creator: "Evolution Gym",
+  publisher: "Evolution Gym",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  openGraph: {
+    title: "Evolution Gym - Tu mejor versión comienza aquí",
+    description:
+      "Planes desde $350 MXN, horarios 24/7 y asesoría incluida. ¡Agenda tu clase gratis!",
+    url: "https://evolutiongymneza.com",
+    siteName: "Evolution Gym",
+    images: [
+      {
+        url: "https://evolutiongymneza.com/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Evolution Gym",
+      },
+    ],
+    locale: "es_MX",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Evolution Gym - Tu mejor versión comienza aquí",
+    description:
+      "Planes flexibles, horarios 24/7 y asesoría incluida. ¡Agenda tu clase gratis!",
+    images: ["https://evolutiongymneza.com/og-image.jpg"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  verification: {
+    google: "tu-codigo-de-verificacion-aqui", // Opcional: cuando verifiques en Google Search Console
+  },
+  alternates: {
+    canonical: "https://evolutiongymneza.com",
+  },
 };
 
 export default function RootLayout({ children }) {
-  // Detectar si estamos en el panel de admin
-  // Nota: Esto se ejecuta en el servidor, usamos headers o simplemente pasamos un prop
-  // Solución: Usaremos un approach diferente en el cliente, pero por ahora simplificamos
-
   return (
     <html lang="es" className={`${inter.variable} ${poppins.variable}`}>
       <body className="bg-background text-white font-sans antialiased">

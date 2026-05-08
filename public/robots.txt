@@ -1,0 +1,9 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /recibo/
+
+Sitemap: https://evolutiongymneza.com/sitemap.xml
+Host: https://evolutiongymneza.com
