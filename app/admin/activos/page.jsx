@@ -23,10 +23,39 @@ export default function ActivosPage() {
   const [selectedMember, setSelectedMember] = useState(null);
   const [paymentData, setPaymentData] = useState({
     fecha_pago: "",
-    plan: "",
+    planKey: "Mensual",
+    plan: "Mensual",
+    precio: 350,
+    mesesIncluidos: 1,
     metodo_pago: "transferencia",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const planes = {
+    Visita: { precio: 50, meses: 0.03, nombre: "Visita" },
+    Mensual: { precio: 350, meses: 1, nombre: "Mensual" },
+    Bimestral: { precio: 600, meses: 2, nombre: "Bimestral" },
+    Trimestral: { precio: 800, meses: 3, nombre: "Trimestral" },
+    Anualidad: { precio: 3500, meses: 12, nombre: "Anualidad" },
+    Promo3x1: {
+      precio: 800,
+      meses: 3,
+      nombre: "Promo: 3 meses por $800",
+      esPromocion: true,
+    },
+    Promo2x1: {
+      precio: 350,
+      meses: 2,
+      nombre: "Promo: 2x1 Mensual",
+      esPromocion: true,
+    },
+    Promo5mas1: {
+      precio: 1750,
+      meses: 6,
+      nombre: "Promo: 5+1 (paga 5, tiene 6)",
+      esPromocion: true,
+    },
+  };
 
   const fetchActivos = async () => {
     try {
@@ -54,39 +83,11 @@ export default function ActivosPage() {
     fetchActivos();
   }, []);
 
-  const preciosPorPlan = {
-    Visita: 50,
-    Mensual: 350,
-    Bimestral: 600,
-    Trimestral: 800,
-    Anualidad: 3500,
-  };
-
-  const calcularProximoPago = (fechaPago, plan) => {
+  const calcularProximoPago = (fechaPago, mesesIncluidos) => {
     if (!fechaPago) return "";
     const [año, mes, dia] = fechaPago.split("-").map(Number);
     const fecha = new Date(año, mes - 1, dia);
-
-    switch (plan) {
-      case "Visita":
-        fecha.setDate(fecha.getDate() + 1);
-        break;
-      case "Mensual":
-        fecha.setDate(fecha.getDate() + 30);
-        break;
-      case "Bimestral":
-        fecha.setMonth(fecha.getMonth() + 2);
-        break;
-      case "Trimestral":
-        fecha.setMonth(fecha.getMonth() + 3);
-        break;
-      case "Anualidad":
-        fecha.setFullYear(fecha.getFullYear() + 1);
-        break;
-      default:
-        fecha.setMonth(fecha.getMonth() + 1);
-    }
-
+    fecha.setMonth(fecha.getMonth() + mesesIncluidos);
     const añoNuevo = fecha.getFullYear();
     const mesNuevo = String(fecha.getMonth() + 1).padStart(2, "0");
     const diaNuevo = String(fecha.getDate()).padStart(2, "0");
@@ -103,14 +104,24 @@ export default function ActivosPage() {
     setSelectedMember(miembro);
     setPaymentData({
       fecha_pago: hoyStr,
+      planKey: miembro.planKey || "Mensual",
       plan: miembro.plan || "Mensual",
+      precio: miembro.precio || 350,
+      mesesIncluidos: miembro.mesesIncluidos || 1,
       metodo_pago: "transferencia",
     });
     setShowPaymentModal(true);
   };
 
-  const handlePlanChange = (plan) => {
-    setPaymentData({ ...paymentData, plan });
+  const handlePlanChange = (planKey) => {
+    const plan = planes[planKey];
+    setPaymentData({
+      ...paymentData,
+      planKey: planKey,
+      plan: plan.nombre,
+      precio: plan.precio,
+      mesesIncluidos: plan.meses,
+    });
   };
 
   const registrarPago = async () => {
@@ -121,9 +132,8 @@ export default function ActivosPage() {
 
     const proximoPago = calcularProximoPago(
       paymentData.fecha_pago,
-      paymentData.plan
+      paymentData.mesesIncluidos
     );
-    const precio = preciosPorPlan[paymentData.plan];
 
     setIsSubmitting(true);
     try {
@@ -134,18 +144,21 @@ export default function ActivosPage() {
           cliente_id: selectedMember.id,
           nombre: selectedMember.nombre,
           fecha_pago: paymentData.fecha_pago,
-          monto: precio,
+          monto: paymentData.precio,
           metodo_pago: paymentData.metodo_pago,
           plan: paymentData.plan,
-          meses: 1,
-          promocion: "",
+          meses: paymentData.mesesIncluidos,
+          promocion: planes[paymentData.planKey]?.esPromocion ? "si" : "",
           usuario: "admin",
         }),
       });
 
       const pagoData = await pagoResponse.json();
       const pagoId = pagoData.id;
-      const reciboUrl = process.env.NEXT_PUBLIC_APP_URL + "/recibo/" + pagoId;
+      const reciboUrl =
+        (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000") +
+        "/recibo/" +
+        pagoId;
 
       await fetch("/api/pagos/" + pagoId + "/recibo", {
         method: "PUT",
@@ -162,9 +175,10 @@ export default function ActivosPage() {
           fecha_pago: paymentData.fecha_pago,
           proximo_pago: proximoPago,
           plan: paymentData.plan,
-          precio: precio,
+          precio: paymentData.precio,
           recibo_url: reciboUrl,
           metodo_pago: paymentData.metodo_pago,
+          meses_incluidos: paymentData.mesesIncluidos,
         }),
       });
 
@@ -360,17 +374,36 @@ export default function ActivosPage() {
             </p>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm mb-1">Plan</label>
+                <label className="block text-sm mb-1">Plan / Promocion</label>
                 <select
-                  value={paymentData.plan}
+                  value={paymentData.planKey}
                   onChange={(e) => handlePlanChange(e.target.value)}
                   className="w-full p-2 bg-gray-800 rounded-lg border border-gray-700"
                 >
-                  <option value="Visita">Visita - $50</option>
-                  <option value="Mensual">Mensual - $350</option>
-                  <option value="Bimestral">Bimestral - $600</option>
-                  <option value="Trimestral">Trimestral - $800</option>
-                  <option value="Anualidad">Anualidad - $3,500</option>
+                  <optgroup label="Planes normales">
+                    <option value="Visita">Visita - $50 (1 dia)</option>
+                    <option value="Mensual">Mensual - $350 (1 mes)</option>
+                    <option value="Bimestral">
+                      Bimestral - $600 (2 meses)
+                    </option>
+                    <option value="Trimestral">
+                      Trimestral - $800 (3 meses)
+                    </option>
+                    <option value="Anualidad">
+                      Anualidad - $3,500 (12 meses)
+                    </option>
+                  </optgroup>
+                  <optgroup label="Promociones especiales">
+                    <option value="Promo3x1">
+                      🎁 3 meses por $800 (paga $800 por 3 meses)
+                    </option>
+                    <option value="Promo2x1">
+                      🎁 2x1 Mensual (paga $350, tiene 2 meses)
+                    </option>
+                    <option value="Promo5mas1">
+                      🎁 5+1 (paga 5 meses, tiene 6)
+                    </option>
+                  </optgroup>
                 </select>
               </div>
 
