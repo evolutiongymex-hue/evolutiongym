@@ -9,12 +9,30 @@ export async function POST(request) {
       id,
       campo,
       valor,
+      nombre,
+      telefono,
       fecha_pago,
       proximo_pago,
       plan,
       precio,
       recibo_url,
+      metodo_pago,
+      meses_incluidos,
+      estado,
+      confirmo,
+      asistio,
+      fecha_prueba,
+      horario,
     } = body;
+
+    console.log("📥 API leads/update recibió:", {
+      tipo,
+      id,
+      nombre,
+      plan,
+      precio,
+      estado,
+    });
 
     if (!id) {
       return NextResponse.json({ error: "Falta id" }, { status: 400 });
@@ -32,16 +50,45 @@ export async function POST(request) {
 
     let payload;
 
-    // Caso: pago completo (una sola petición con todos los datos)
-    if (tipo === "pago_completo") {
+    // Caso: nuevo cliente activo (crear directamente en CRM)
+    if (tipo === "nuevo_activo") {
+      payload = {
+        tipo: "nuevo_activo",
+        id: id,
+        nombre: nombre || "",
+        telefono: telefono || "",
+        fecha_prueba: fecha_prueba || "",
+        horario: horario || "N/A",
+        estado: estado || "ACTIVO",
+        confirmo: confirmo || "Sí",
+        asistio: asistio || "Sí",
+        plan: plan || "",
+        precio: precio || 0,
+        fecha_pago: fecha_pago || "",
+        proximo_pago: proximo_pago || "",
+        recibo_url: recibo_url || "",
+        metodo_pago: metodo_pago || "transferencia",
+        meses_incluidos: meses_incluidos || 1,
+      };
+      console.log("📤 Enviando nuevo activo a MAKE:", payload);
+    }
+    // Caso: pago completo (actualizar lead existente)
+    else if (tipo === "pago_completo") {
       payload = {
         tipo: "pago_completo",
         id: id,
+        nombre: nombre || "",
+        telefono: telefono || "",
         fecha_pago: fecha_pago,
         proximo_pago: proximo_pago,
         plan: plan,
         precio: precio,
         recibo_url: recibo_url || "",
+        metodo_pago: metodo_pago || "transferencia",
+        meses_incluidos: meses_incluidos || 1,
+        estado: estado || "ACTIVO",
+        confirmo: confirmo || "Sí",
+        asistio: asistio || "Sí",
       };
       console.log("📤 Enviando pago completo a MAKE:", payload);
     }

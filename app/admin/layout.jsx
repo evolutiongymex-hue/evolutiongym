@@ -90,7 +90,7 @@ export default function AdminLayout({ children }) {
 
   const menuItems = [
     {
-      name: "INVENTARIO",
+      name: "PRODUCTOS",
       href: "/admin/inventario",
       icon: Package,
       color: "text-purple-400",
