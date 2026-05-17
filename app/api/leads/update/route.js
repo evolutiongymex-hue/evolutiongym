@@ -1,4 +1,3 @@
-// app/api/leads/update/route.js
 import { NextResponse } from "next/server";
 
 export async function POST(request) {
@@ -25,82 +24,64 @@ export async function POST(request) {
       horario,
     } = body;
 
-    console.log("📥 API leads/update recibió:", {
-      tipo,
-      id,
-      nombre,
-      plan,
-      precio,
-      estado,
-    });
-
     if (!id) {
-      return NextResponse.json({ error: "Falta id" }, { status: 400 });
+      return NextResponse.json({ error: "Falta el campo id" }, { status: 400 });
     }
 
     const webhookUrl = process.env.MAKE_WEBHOOK_URL;
 
     if (!webhookUrl) {
-      console.error("❌ MAKE_WEBHOOK_URL no configurado");
       return NextResponse.json(
-        { error: "Error de configuración" },
+        { error: "Error de configuracion del servidor" },
         { status: 500 }
       );
     }
 
     let payload;
 
-    // Caso: nuevo cliente activo (crear directamente en CRM)
     if (tipo === "nuevo_activo") {
       payload = {
         tipo: "nuevo_activo",
-        id: id,
-        nombre: nombre || "",
-        telefono: telefono || "",
-        fecha_prueba: fecha_prueba || "",
-        horario: horario || "N/A",
-        estado: estado || "ACTIVO",
-        confirmo: confirmo || "Sí",
-        asistio: asistio || "Sí",
-        plan: plan || "",
-        precio: precio || 0,
-        fecha_pago: fecha_pago || "",
-        proximo_pago: proximo_pago || "",
-        recibo_url: recibo_url || "",
-        metodo_pago: metodo_pago || "transferencia",
-        meses_incluidos: meses_incluidos || 1,
+        id,
+        nombre: nombre ?? "",
+        telefono: telefono ?? "",
+        fecha_prueba: fecha_prueba ?? "",
+        horario: horario ?? "N/A",
+        estado: estado ?? "ACTIVO",
+        confirmo: confirmo ?? "Si",
+        asistio: asistio ?? "Si",
+        plan: plan ?? "",
+        precio: precio ?? 0,
+        fecha_pago: fecha_pago ?? "",
+        proximo_pago: proximo_pago ?? "",
+        recibo_url: recibo_url ?? "",
+        metodo_pago: metodo_pago ?? "transferencia",
+        meses_incluidos: meses_incluidos ?? 1,
       };
-      console.log("📤 Enviando nuevo activo a MAKE:", payload);
-    }
-    // Caso: pago completo (actualizar lead existente)
-    else if (tipo === "pago_completo") {
+    } else if (tipo === "pago_completo") {
       payload = {
         tipo: "pago_completo",
-        id: id,
-        nombre: nombre || "",
-        telefono: telefono || "",
-        fecha_pago: fecha_pago,
-        proximo_pago: proximo_pago,
-        plan: plan,
-        precio: precio,
-        recibo_url: recibo_url || "",
-        metodo_pago: metodo_pago || "transferencia",
-        meses_incluidos: meses_incluidos || 1,
-        estado: estado || "ACTIVO",
-        confirmo: confirmo || "Sí",
-        asistio: asistio || "Sí",
+        id,
+        nombre: nombre ?? "",
+        telefono: telefono ?? "",
+        fecha_pago,
+        proximo_pago,
+        plan,
+        precio,
+        recibo_url: recibo_url ?? "",
+        metodo_pago: metodo_pago ?? "transferencia",
+        meses_incluidos: meses_incluidos ?? 1,
+        estado: estado ?? "ACTIVO",
+        confirmo: confirmo ?? "Si",
+        asistio: asistio ?? "Si",
       };
-      console.log("📤 Enviando pago completo a MAKE:", payload);
-    }
-    // Caso: update normal (campo + valor)
-    else {
+    } else {
       payload = {
-        tipo: tipo || "update",
-        id: id,
-        campo: campo,
-        valor: valor,
+        tipo: tipo ?? "update",
+        id,
+        campo,
+        valor,
       };
-      console.log("📤 Enviando update a MAKE:", payload);
     }
 
     const response = await fetch(webhookUrl, {
@@ -110,12 +91,14 @@ export async function POST(request) {
     });
 
     if (!response.ok) {
-      throw new Error(`MAKE error: ${response.status}`);
+      throw new Error(`Make webhook error: ${response.status}`);
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("❌ Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch {
+    return NextResponse.json(
+      { error: "Error al procesar la solicitud" },
+      { status: 500 }
+    );
   }
 }

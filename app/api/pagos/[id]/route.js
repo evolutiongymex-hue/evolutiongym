@@ -1,53 +1,27 @@
-// app/api/pagos/[id]/route.js
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
-import fs from "fs";
-import path from "path";
+import { getAuthClient, getSheetsClient, SHEET_ID } from "@/lib/google-sheets";
 
 export const runtime = "nodejs";
-
-async function getAuthClient() {
-  const isVercel = process.env.VERCEL === "1";
-
-  if (isVercel) {
-    // En Vercel: usar variable de entorno
-    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    return await auth.getClient();
-  } else {
-    // En local: usar archivo
-    const auth = new google.auth.GoogleAuth({
-      keyFile: path.join(process.cwd(), "service-account.json"),
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-    return await auth.getClient();
-  }
-}
 
 export async function GET(request, { params }) {
   try {
     const { id } = params;
 
     const auth = await getAuthClient();
-    const sheets = google.sheets({ version: "v4", auth });
+    const sheets = getSheetsClient(auth);
 
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: "PAGOS!A:K",
-    });
+    const [pagosRes, crmRes] = await Promise.all([
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: "PAGOS!A:K",
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: "CRM_Evolution_Gym!A:Q",
+      }),
+    ]);
 
-    const pagos = response.data.values || [];
-    if (pagos.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "No hay pagos" },
-        { status: 404 }
-      );
-    }
-
-    // Buscar el pago por ID (columna A)
+    const pagos = pagosRes.data.values ?? [];
     const pago = pagos.slice(1).find((row) => row[0] === id);
 
     if (!pago) {
@@ -57,14 +31,9 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Buscar el próximo pago en CRM_Evolution_Gym
-    const crmResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: "CRM_Evolution_Gym!A:Q",
-    });
-    const clientes = crmResponse.data.values || [];
+    const clientes = crmRes.data.values ?? [];
     const cliente = clientes.slice(1).find((row) => row[0] === pago[1]);
-    const proximoPago = cliente ? cliente[13] : null; // columna N
+    const proximoPago = cliente?.[13] ?? null;
 
     return NextResponse.json({
       success: true,
@@ -73,18 +42,20 @@ export async function GET(request, { params }) {
         cliente_id: pago[1],
         nombre: pago[2],
         fecha_pago: pago[3],
-        monto: parseFloat(pago[4]),
+        monto: parseFloat(pago[4]) || 0,
         metodo_pago: pago[5],
         plan: pago[6],
-        meses: parseInt(pago[7]),
-        promocion: pago[8],
-        usuario: pago[9],
-        recibo_url: pago[10],
+        meses: parseInt(pago[7]) || 1,
+        promocion: pago[8] ?? "",
+        usuario: pago[9] ?? "admin",
+        recibo_url: pago[10] ?? "",
         proximo_pago: proximoPago,
       },
     });
-  } catch (error) {
-    console.error("Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch {
+    return NextResponse.json(
+      { error: "Error al obtener el pago" },
+      { status: 500 }
+    );
   }
 }
