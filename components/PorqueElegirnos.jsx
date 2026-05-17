@@ -1,12 +1,49 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { FiClock, FiDollarSign, FiUser, FiCheck } from "react-icons/fi";
 
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
-}
+const VENTAJAS = [
+  {
+    id: 1,
+    titulo: "Horarios flexibles",
+    descripcion:
+      "Entrena cuando quieras. Abrimos de 7am a 10pm, 7 dias a la semana. Nos adaptamos a tu ritmo de vida.",
+    icon: FiClock,
+    gradient: "from-primary/15 to-transparent",
+    border: "border-primary/25",
+    glow: "shadow-primary/10",
+  },
+  {
+    id: 2,
+    titulo: "Mejores precios",
+    descripcion:
+      "Planes flexibles que se ajustan a tu bolsillo. Sin letras chicas, sin costos ocultos. Pagas lo que ves.",
+    icon: FiDollarSign,
+    gradient: "from-secondary/15 to-transparent",
+    border: "border-secondary/25",
+    glow: "shadow-secondary/10",
+  },
+  {
+    id: 3,
+    titulo: "Asesoria incluida",
+    descripcion:
+      "Entrenadores profesionales te guian en cada paso. Planes personalizados segun tus objetivos y nivel.",
+    icon: FiUser,
+    gradient: "from-primary/10 to-secondary/10",
+    border: "border-primary/25",
+    glow: "shadow-primary/10",
+  },
+];
+
+const BADGES = [
+  "Sin permanencia",
+  "Cancela cuando quieras",
+  "Estacionamiento gratis",
+  "Lockers y duchas",
+];
 
 const PorqueElegirnos = () => {
   const sectionRef = useRef(null);
@@ -14,195 +51,120 @@ const PorqueElegirnos = () => {
   const cardsRef = useRef([]);
 
   useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
     const ctx = gsap.context(() => {
-      // Animación del título
       gsap.fromTo(
         titleRef.current,
-        { opacity: 0, y: 50 },
+        { opacity: 0, y: 40 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.8,
+          duration: 0.7,
           ease: "power3.out",
           scrollTrigger: {
             trigger: sectionRef.current,
             start: "top 80%",
-            toggleActions: "play none none reverse",
+            toggleActions: "play none none none",
           },
         }
       );
 
-      // Animación de las tarjetas
-      cardsRef.current.forEach((card, index) => {
-        gsap.fromTo(
-          card,
-          { opacity: 0, y: 60 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.6,
-            delay: index * 0.15,
-            ease: "back.out(0.8)",
-            scrollTrigger: {
-              trigger: sectionRef.current,
-              start: "top 70%",
-              toggleActions: "play none none reverse",
-            },
-          }
-        );
-      });
+      const validCards = cardsRef.current.filter(Boolean);
+
+      gsap.fromTo(
+        validCards,
+        { opacity: 0, y: 50 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.6,
+          ease: "back.out(0.7)",
+          stagger: 0.14,
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: "top 70%",
+            toggleActions: "play none none none",
+          },
+        }
+      );
     }, sectionRef);
 
     return () => ctx.revert();
   }, []);
 
-  const ventajas = [
-    {
-      id: 1,
-      titulo: "Horarios Flexibles",
-      descripcion:
-        "Entrena cuando quieras. Abrimos de 7am a 10pm, 7 días a la semana. Nos adaptamos a tu ritmo de vida.",
-      icono: (
-        <svg
-          className="w-10 h-10"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-      ),
-      color: "from-primary/20 to-transparent",
-      borderColor: "border-primary/30",
-    },
-    {
-      id: 2,
-      titulo: "Mejores Precios",
-      descripcion:
-        "Planes flexibles que se ajustan a tu bolsillo. Sin letras chicas, sin costos ocultos. Pagas lo que ves.",
-      icono: (
-        <svg
-          className="w-10 h-10"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-      ),
-      color: "from-secondary/20 to-transparent",
-      borderColor: "border-secondary/30",
-    },
-    {
-      id: 3,
-      titulo: "Asesoría Incluida",
-      descripcion:
-        "Entrenadores profesionales te guían en cada paso. Planes personalizados según tus objetivos y nivel.",
-      icono: (
-        <svg
-          className="w-10 h-10"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-          />
-        </svg>
-      ),
-      color: "from-primary/20 to-secondary/20",
-      borderColor: "border-primary/30",
-    },
-  ];
-
   return (
     <section ref={sectionRef} className="py-24 px-4" id="porque-elegirnos">
       <div className="max-w-6xl mx-auto">
-        {/* Título */}
+        {/* Encabezado */}
         <div ref={titleRef} className="text-center mb-16">
           <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20">
-            <span className="text-primary text-sm font-semibold">
-              ¿POR QUÉ ELEGIRNOS?
+            <span className="text-primary text-xs font-bold tracking-widest uppercase">
+              Por que elegirnos
             </span>
           </div>
-
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
-            La mejor decisión para{" "}
+          <h2 className="text-4xl sm:text-5xl font-black mb-4 tracking-tight">
+            La mejor decision para{" "}
             <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               tu salud
             </span>
           </h2>
-
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Más de 100 alumnos confían en nosotros. Descubre por qué.
+          <p className="text-gray-400 text-base max-w-xl mx-auto">
+            Mas de 180 alumnos confian en nosotros. Descubre por que.
           </p>
         </div>
 
-        {/* Grid de 3 columnas */}
+        {/* Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {ventajas.map((ventaja, index) => (
-            <div
-              key={ventaja.id}
-              ref={(el) => (cardsRef.current[index] = el)}
-              className={`
-                group relative rounded-2xl p-8
-                bg-gradient-to-br ${ventaja.color}
-                border ${ventaja.borderColor}
-                backdrop-blur-sm
-                transition-all duration-300
-                hover:-translate-y-2
-                hover:shadow-xl
-                hover:shadow-primary/10
-              `}
-            >
-              {/* Icono */}
-              <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform duration-300">
-                {ventaja.icono}
+          {VENTAJAS.map((ventaja, index) => {
+            const Icon = ventaja.icon;
+            return (
+              <div
+                key={ventaja.id}
+                ref={(el) => {
+                  cardsRef.current[index] = el;
+                }}
+                className={`
+                  group relative rounded-2xl p-8 overflow-hidden
+                  bg-gradient-to-br ${ventaja.gradient}
+                  border ${ventaja.border}
+                  backdrop-blur-sm
+                  transition-all duration-300
+                  hover:-translate-y-2
+                  hover:shadow-xl ${ventaja.glow}
+                `}
+              >
+                {/* Icono */}
+                <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Icon className="w-6 h-6 text-primary" />
+                </div>
+
+                {/* Texto */}
+                <h3 className="text-lg font-bold mb-3 text-white group-hover:text-primary transition-colors duration-300">
+                  {ventaja.titulo}
+                </h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  {ventaja.descripcion}
+                </p>
+
+                {/* Linea decorativa hover */}
+                <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-primary to-secondary scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" />
               </div>
-
-              {/* Título */}
-              <h3 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors">
-                {ventaja.titulo}
-              </h3>
-
-              {/* Descripción */}
-              <p className="text-gray-400 text-sm leading-relaxed">
-                {ventaja.descripcion}
-              </p>
-
-              {/* Línea decorativa al hover */}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-secondary rounded-b-2xl scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" />
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        {/* Beneficios adicionales en badges */}
+        {/* Badges */}
         <div className="mt-12 flex flex-wrap justify-center gap-3">
-          <div className="px-4 py-2 rounded-full bg-gray-900/50 border border-gray-800 text-sm text-gray-300">
-            ✅ Sin permanencia
-          </div>
-          <div className="px-4 py-2 rounded-full bg-gray-900/50 border border-gray-800 text-sm text-gray-300">
-            ✅ Cancela cuando quieras
-          </div>
-          <div className="px-4 py-2 rounded-full bg-gray-900/50 border border-gray-800 text-sm text-gray-300">
-            ✅ Estacionamiento gratis
-          </div>
-          <div className="px-4 py-2 rounded-full bg-gray-900/50 border border-gray-800 text-sm text-gray-300">
-            ✅ Lockers y duchas
-          </div>
+          {BADGES.map((badge) => (
+            <div
+              key={badge}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.04] border border-white/10 text-sm text-gray-400"
+            >
+              <FiCheck className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+              {badge}
+            </div>
+          ))}
         </div>
       </div>
     </section>

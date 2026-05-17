@@ -1,174 +1,190 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { AiFillStar } from "react-icons/ai";
+import { FiAward } from "react-icons/fi";
 
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
-}
+const TESTIMONIOS = [
+  {
+    id: 1,
+    nombre: "Carlos Rodriguez",
+    ocupacion: "Ingeniero",
+    meses: 6,
+    testimonio:
+      "Llevo 6 meses aqui y he notado cambios increibles. Perdi 12 kilos y gane mucha fuerza. Los entrenadores son muy profesionales.",
+    rating: 5,
+    logro: "-12 kg",
+    iniciales: "CR",
+    accentColor: "primary",
+  },
+  {
+    id: 2,
+    nombre: "Maria Fernandez",
+    ocupacion: "Nutricionista",
+    meses: 3,
+    testimonio:
+      "El mejor gimnasio al que he ido. Las maquinas son nuevas, el ambiente es motivador y los horarios flexibles me salvan la vida.",
+    rating: 5,
+    logro: "+40% fuerza",
+    iniciales: "MF",
+    accentColor: "secondary",
+  },
+  {
+    id: 3,
+    nombre: "Javier Mendez",
+    ocupacion: "Empresario",
+    meses: 12,
+    testimonio:
+      "Despues de probar 5 gimnasios, este es el unico donde realmente vi resultados. La asesoria personalizada marca la diferencia.",
+    rating: 5,
+    logro: "Meta cumplida",
+    iniciales: "JM",
+    accentColor: "primary",
+  },
+];
 
 const Testimonios = () => {
   const sectionRef = useRef(null);
   const titleRef = useRef(null);
-  const testimoniosRef = useRef([]);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const cardsRef = useRef([]);
 
   useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
     const ctx = gsap.context(() => {
-      // Animación del título
       gsap.fromTo(
         titleRef.current,
-        { opacity: 0, y: 50 },
+        { opacity: 0, y: 40 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.8,
+          duration: 0.7,
           ease: "power3.out",
           scrollTrigger: {
             trigger: sectionRef.current,
             start: "top 80%",
-            toggleActions: "play none none reverse",
+            toggleActions: "play none none none",
           },
         }
       );
 
-      // Animación de los testimonios
-      testimoniosRef.current.forEach((testimonio, index) => {
-        gsap.fromTo(
-          testimonio,
-          { opacity: 0, scale: 0.9 },
-          {
-            opacity: 1,
-            scale: 1,
-            duration: 0.6,
-            delay: index * 0.1,
-            ease: "back.out(0.8)",
-            scrollTrigger: {
-              trigger: sectionRef.current,
-              start: "top 70%",
-              toggleActions: "play none none reverse",
-            },
-          }
-        );
-      });
+      const validCards = cardsRef.current.filter(Boolean);
+
+      gsap.fromTo(
+        validCards,
+        { opacity: 0, scale: 0.92, y: 20 },
+        {
+          opacity: 1,
+          scale: 1,
+          y: 0,
+          duration: 0.55,
+          ease: "back.out(0.7)",
+          stagger: 0.12,
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: "top 70%",
+            toggleActions: "play none none none",
+          },
+        }
+      );
     }, sectionRef);
 
     return () => ctx.revert();
   }, []);
 
-  const testimonios = [
-    {
-      id: 1,
-      nombre: "Carlos Rodríguez",
-      edad: 34,
-      ocupacion: "Ingeniero",
-      foto: "/images/cliente1.jpg", // Cambia por tu foto real
-      meses: 6,
-      testimonio:
-        "Llevo 6 meses aquí y he notado cambios increíbles. Perdí 12 kilos y gané mucha fuerza. Los entrenadores son muy profesionales.",
-      rating: 5,
-      logro: "-12 kg",
-      iniciales: "CR",
-    },
-    {
-      id: 2,
-      nombre: "María Fernández",
-      edad: 28,
-      ocupacion: "Nutricionista",
-      foto: "/images/cliente2.jpg",
-      meses: 3,
-      testimonio:
-        "El mejor gimnasio al que he ido. Las máquinas son nuevas, el ambiente es motivador y los horarios flexibles me salvan.",
-      rating: 5,
-      logro: "+40% fuerza",
-      iniciales: "MF",
-    },
-    {
-      id: 3,
-      nombre: "Javier Méndez",
-      edad: 42,
-      ocupacion: "Empresario",
-      foto: "/images/cliente3.jpg",
-      meses: 12,
-      testimonio:
-        "Después de probar 5 gimnasios, este es el único donde realmente vi resultados. La asesoría personalizada marca la diferencia.",
-      rating: 5,
-      logro: "Meta cumplida",
-      iniciales: "JM",
-    },
-  ];
-
   return (
     <section ref={sectionRef} className="py-24 px-4" id="testimonios">
       <div className="max-w-6xl mx-auto">
-        {/* Título */}
-        <div ref={titleRef} className="text-center mb-12">
+        {/* Encabezado */}
+        <div ref={titleRef} className="text-center mb-14">
           <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20">
-            <span className="text-primary text-sm font-semibold">
-              CLIENTES FELICES
+            <span className="text-primary text-xs font-bold tracking-widest uppercase">
+              Clientes felices
             </span>
           </div>
-
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
+          <h2 className="text-4xl sm:text-5xl font-black mb-4 tracking-tight">
             Lo que dicen{" "}
             <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               nuestros alumnos
             </span>
           </h2>
-
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+          <p className="text-gray-400 text-base max-w-xl mx-auto">
             Resultados reales, personas reales. Historias que inspiran.
           </p>
         </div>
 
-        {/* Grid de testimonios */}
+        {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {testimonios.map((item, index) => (
+          {TESTIMONIOS.map((item, index) => (
             <div
               key={item.id}
-              ref={(el) => (testimoniosRef.current[index] = el)}
-              className="group relative bg-gray-900/40 backdrop-blur-sm rounded-2xl p-6 border border-gray-800 hover:border-primary/30 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/10"
+              ref={(el) => {
+                cardsRef.current[index] = el;
+              }}
+              className="group relative bg-white/[0.03] backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-primary/30 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-primary/10 overflow-hidden flex flex-col"
             >
-              {/* Rating estrellas */}
-              <div className="flex gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <svg
-                    key={i}
-                    className="w-4 h-4 text-yellow-500 fill-current"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
+              {/* Comilla decorativa con CSS */}
+              <div
+                className="absolute -top-2 right-4 text-8xl font-serif text-white/[0.04] select-none leading-none pointer-events-none"
+                aria-hidden="true"
+              >
+                &ldquo;
+              </div>
+
+              {/* Estrellas */}
+              <div className="flex gap-0.5 mb-4">
+                {Array.from({ length: item.rating }).map((_, i) => (
+                  <AiFillStar key={i} className="w-4 h-4 text-yellow-500" />
                 ))}
               </div>
 
               {/* Testimonio */}
-              <p className="text-gray-300 text-sm leading-relaxed mb-6 italic">
-                "{item.testimonio}"
+              <p className="text-gray-300 text-sm leading-relaxed mb-5 italic flex-1">
+                &ldquo;{item.testimonio}&rdquo;
               </p>
 
-              {/* Logro destacado */}
-              <div className="inline-block mb-4 px-3 py-1 bg-primary/10 rounded-full text-primary text-xs font-semibold">
-                🏆 {item.logro} en {item.meses} meses
+              {/* Badge logro */}
+              <div className="inline-flex items-center gap-1.5 mb-5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 self-start">
+                <FiAward className="w-3 h-3 text-primary" />
+                <span className="text-primary text-[11px] font-bold">
+                  {item.logro} en {item.meses} meses
+                </span>
               </div>
 
-              {/* Información del cliente */}
-              <div className="flex items-center gap-3">
+              {/* Cliente */}
+              <div className="flex items-center gap-3 pt-4 border-t border-white/5">
+                {/* Avatar con iniciales */}
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-secondary/40 border border-primary/30 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-xs font-bold tracking-wide">
+                    {item.iniciales}
+                  </span>
+                </div>
                 <div>
-                  <h4 className="font-semibold text-white">{item.nombre}</h4>
+                  <h4 className="font-semibold text-white text-sm">
+                    {item.nombre}
+                  </h4>
                   <p className="text-gray-500 text-xs">
-                    {item.ocupacion} · {item.meses} meses
+                    {item.ocupacion} · {item.meses} meses entrenando
                   </p>
                 </div>
               </div>
-
-              {/* Comillas decorativas */}
-              <div className="absolute bottom-4 right-4 opacity-10 text-6xl font-serif">
-                "
-              </div>
             </div>
           ))}
+        </div>
+
+        {/* Rating global */}
+        <div className="mt-12 flex flex-col items-center gap-2">
+          <div className="flex gap-1">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <AiFillStar key={i} className="w-5 h-5 text-yellow-500" />
+            ))}
+          </div>
+          <p className="text-gray-500 text-sm">
+            <span className="text-white font-semibold">5.0</span> de 5 — basado
+            en opiniones de alumnos activos
+          </p>
         </div>
       </div>
     </section>

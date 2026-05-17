@@ -1,39 +1,48 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import gsap from "gsap";
+import { useEffect, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const NAV_ITEMS = [
+  { name: "Inicio", href: "#hero" },
+  { name: "Planes", href: "#planes" },
+  { name: "Instalaciones", href: "#instalaciones" },
+  { name: "Testimonios", href: "#testimonios" },
+  { name: "Contacto", href: "#formulario" },
+];
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-    window.addEventListener("scroll", handleScroll);
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const menuItems = [
-    { name: "Inicio", href: "#hero" },
-    { name: "Planes", href: "#planes" },
-    { name: "Instalaciones", href: "#instalaciones" },
-    { name: "Testimonios", href: "#testimonios" },
-    { name: "Contacto", href: "#formulario" },
-  ];
+  // Bloquear scroll del body cuando el menú móvil está abierto
+  useEffect(() => {
+    document.body.style.overflow = isMobileMenuOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileMenuOpen]);
 
-  const scrollToSection = (href) => {
+  const scrollToSection = useCallback((href) => {
     const element = document.querySelector(href);
     if (element) {
       element.scrollIntoView({ behavior: "smooth" });
       setIsMobileMenuOpen(false);
     }
-  };
+  }, []);
 
   return (
     <>
-      <header
+      <motion.header
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
         className={`
           fixed top-0 left-0 right-0 z-50 transition-all duration-500
           ${
@@ -46,21 +55,23 @@ const Header = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <div
-              className="flex items-center gap-2 cursor-pointer group"
-              onClick={() => scrollToSection("#inicio")}
+            <button
+              onClick={() => scrollToSection("#hero")}
+              aria-label="Ir al inicio"
+              className="flex items-center gap-2 group"
             >
-              <div>
-                <span className="text-white font-bold text-xl tracking-tight">
-                  EVOLUTION
-                </span>
-                <span className="text-primary font-bold text-xl">GYM</span>
-              </div>
-            </div>
+              <span className="text-white font-bold text-xl tracking-tight">
+                EVOLUTION
+              </span>
+              <span className="text-primary font-bold text-xl">GYM</span>
+            </button>
 
-            {/* Menu Desktop */}
-            <nav className="hidden lg:flex items-center gap-8">
-              {menuItems.map((item) => (
+            {/* Nav Desktop */}
+            <nav
+              className="hidden lg:flex items-center gap-8"
+              aria-label="Navegación principal"
+            >
+              {NAV_ITEMS.map((item) => (
                 <button
                   key={item.name}
                   onClick={() => scrollToSection(item.href)}
@@ -72,7 +83,7 @@ const Header = () => {
               ))}
             </nav>
 
-            {/* Botón CTA Desktop */}
+            {/* CTA Desktop */}
             <div className="hidden lg:block">
               <button
                 onClick={() => scrollToSection("#formulario")}
@@ -83,81 +94,72 @@ const Header = () => {
               </button>
             </div>
 
-            {/* Botón Mobile Menu */}
+            {/* Hamburguesa Mobile */}
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden relative w-10 h-10 flex flex-col items-center justify-center gap-1.5 group"
+              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+              aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+              aria-expanded={isMobileMenuOpen}
+              className="lg:hidden relative w-10 h-10 flex flex-col items-center justify-center gap-1.5"
             >
               <span
-                className={`
-                w-6 h-0.5 bg-white rounded-full transition-all duration-300
-                ${isMobileMenuOpen ? "rotate-45 translate-y-2" : ""}
-              `}
+                className={`w-6 h-0.5 bg-white rounded-full transition-all duration-300 ${
+                  isMobileMenuOpen ? "rotate-45 translate-y-2" : ""
+                }`}
               />
               <span
-                className={`
-                w-6 h-0.5 bg-white rounded-full transition-all duration-300
-                ${isMobileMenuOpen ? "opacity-0" : ""}
-              `}
+                className={`w-6 h-0.5 bg-white rounded-full transition-all duration-300 ${
+                  isMobileMenuOpen ? "opacity-0 scale-x-0" : ""
+                }`}
               />
               <span
-                className={`
-                w-6 h-0.5 bg-white rounded-full transition-all duration-300
-                ${isMobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}
-              `}
+                className={`w-6 h-0.5 bg-white rounded-full transition-all duration-300 ${
+                  isMobileMenuOpen ? "-rotate-45 -translate-y-2" : ""
+                }`}
               />
             </button>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      {/* Mobile Menu Overlay */}
-      <div
-        className={`
-        fixed inset-0 z-40 bg-background/95 backdrop-blur-lg transition-all duration-500 lg:hidden
-        ${
-          isMobileMenuOpen
-            ? "opacity-100 visible pointer-events-auto"
-            : "opacity-0 invisible pointer-events-none"
-        }
-      `}
-      >
-        <div className="flex flex-col items-center justify-center h-full gap-8">
-          {menuItems.map((item, index) => (
-            <button
-              key={item.name}
-              onClick={() => scrollToSection(item.href)}
-              className={`
-                text-2xl font-semibold text-white hover:text-primary
-                transform transition-all duration-500
-                ${
-                  isMobileMenuOpen
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-10 opacity-0"
-                }
-              `}
-              style={{ transitionDelay: `${index * 100}ms` }}
-            >
-              {item.name}
-            </button>
-          ))}
-          <button
-            onClick={() => scrollToSection("#formulario")}
-            className={`
-              mt-4 bg-primary text-white px-8 py-3 rounded-full font-semibold
-              transform transition-all duration-500 hover:scale-105
-              ${
-                isMobileMenuOpen
-                  ? "translate-y-0 opacity-100"
-                  : "translate-y-10 opacity-0"
-              }
-            `}
-            style={{ transitionDelay: "400ms" }}
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            key="mobile-menu"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            aria-hidden={!isMobileMenuOpen}
+            className="fixed inset-0 z-40 bg-background/95 backdrop-blur-lg lg:hidden"
           >
-            Clase gratis
-          </button>
-        </div>
-      </div>
+            <div className="flex flex-col items-center justify-center h-full gap-8">
+              {NAV_ITEMS.map((item, index) => (
+                <motion.button
+                  key={item.name}
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: index * 0.08, duration: 0.4 }}
+                  onClick={() => scrollToSection(item.href)}
+                  className="text-2xl font-semibold text-white hover:text-primary transition-colors duration-300"
+                >
+                  {item.name}
+                </motion.button>
+              ))}
+
+              <motion.button
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: NAV_ITEMS.length * 0.08, duration: 0.4 }}
+                onClick={() => scrollToSection("#formulario")}
+                className="mt-4 bg-primary text-white px-8 py-3 rounded-full font-semibold hover:scale-105 transition-transform duration-300"
+              >
+                Clase gratis
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

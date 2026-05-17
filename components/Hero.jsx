@@ -1,157 +1,149 @@
-// components/Hero.jsx
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { motion, useInView } from "framer-motion";
+import { BsCalendarCheck } from "react-icons/bs";
+import { FaWhatsapp } from "react-icons/fa";
 
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
-}
+const PHRASES = [
+  "Entrena con nosotros",
+  "Ponte en forma",
+  "Supera tus limites",
+  "Resultados reales",
+];
+
+const PHONE = "5655382350";
+const WA_MESSAGE = encodeURIComponent(
+  "Hola, quiero informacion sobre los planes y agendar una clase gratis"
+);
+
+const STATS = [
+  { value: "7 am", label: "Apertura" },
+  { value: "10 pm", label: "Cierre" },
+  { value: "7 dias", label: "A la semana" },
+];
 
 const Hero = () => {
   const heroRef = useRef(null);
   const titleRef = useRef(null);
   const subtitleRef = useRef(null);
-  const buttonsRef = useRef(null);
   const statsRef = useRef(null);
-  const badgeRef = useRef(null);
+  const rafRef = useRef(null);
 
-  // Estado para el efecto de tipeo
+  const statsInView = useInView(statsRef, { once: true, margin: "-60px" });
+
   const [typedText, setTypedText] = useState("");
-  const [isTypingComplete, setIsTypingComplete] = useState(false);
-
-  const phrases = [
-    "Entrena con nosotros",
-    "Ponte en forma",
-    "Supera tus límites",
-    "Resultados reales",
-  ];
-
-  // Contador de alumnos
   const [alumnosCount, setAlumnosCount] = useState(0);
-  const targetAlumnos = 184;
 
-  // Efecto de tipeo (ligero, sin librerías externas)
+  // Efecto de tipeo
   useEffect(() => {
-    let currentPhraseIndex = 0;
-    let currentCharIndex = 0;
+    let phraseIndex = 0;
+    let charIndex = 0;
     let isDeleting = false;
     let timeoutId;
 
-    const typeEffect = () => {
-      const currentPhrase = phrases[currentPhraseIndex];
+    const tick = () => {
+      const phrase = PHRASES[phraseIndex];
 
       if (isDeleting) {
-        setTypedText(currentPhrase.substring(0, currentCharIndex - 1));
-        currentCharIndex--;
+        charIndex--;
+        setTypedText(phrase.substring(0, charIndex));
       } else {
-        setTypedText(currentPhrase.substring(0, currentCharIndex + 1));
-        currentCharIndex++;
+        charIndex++;
+        setTypedText(phrase.substring(0, charIndex));
       }
 
-      if (!isDeleting && currentCharIndex === currentPhrase.length) {
+      if (!isDeleting && charIndex === phrase.length) {
         isDeleting = true;
-        timeoutId = setTimeout(typeEffect, 2000);
+        timeoutId = setTimeout(tick, 2000);
         return;
       }
 
-      if (isDeleting && currentCharIndex === 0) {
+      if (isDeleting && charIndex === 0) {
         isDeleting = false;
-        currentPhraseIndex = (currentPhraseIndex + 1) % phrases.length;
-        timeoutId = setTimeout(typeEffect, 500);
+        phraseIndex = (phraseIndex + 1) % PHRASES.length;
+        timeoutId = setTimeout(tick, 400);
         return;
       }
 
-      const speed = isDeleting ? 50 : 100;
-      timeoutId = setTimeout(typeEffect, speed);
+      timeoutId = setTimeout(tick, isDeleting ? 45 : 90);
     };
 
-    timeoutId = setTimeout(typeEffect, 500);
-
+    timeoutId = setTimeout(tick, 600);
     return () => clearTimeout(timeoutId);
   }, []);
 
-  // Contador de alumnos (cuando entra en viewport)
+  // Contador de alumnos con useInView
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          let start = 0;
-          const duration = 2000;
-          const step = 20;
-          const increment = targetAlumnos / (duration / step);
+    if (!statsInView) return;
 
-          const counter = setInterval(() => {
-            start += increment;
-            if (start >= targetAlumnos) {
-              setAlumnosCount(targetAlumnos);
-              clearInterval(counter);
-            } else {
-              setAlumnosCount(Math.floor(start));
-            }
-          }, step);
+    const target = 184;
+    const duration = 1800;
+    const step = 16;
+    const increment = target / (duration / step);
+    let current = 0;
 
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.5 }
-    );
+    const counter = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        setAlumnosCount(target);
+        clearInterval(counter);
+      } else {
+        setAlumnosCount(Math.floor(current));
+      }
+    }, step);
 
-    if (statsRef.current) {
-      observer.observe(statsRef.current);
-    }
+    return () => clearInterval(counter);
+  }, [statsInView]);
 
-    return () => observer.disconnect();
-  }, []);
-
-  // Animaciones GSAP (optimizadas)
+  // Animaciones GSAP de entrada
   useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
     const ctx = gsap.context(() => {
-      // Animación del badge
-      gsap.fromTo(
-        badgeRef.current,
-        { opacity: 0, y: -20 },
-        { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }
-      );
+      const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
 
-      // Animación del título (solo fade, sin translate pesado)
-      gsap.fromTo(
-        titleRef.current,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.8, ease: "power2.out", delay: 0.2 }
-      );
+      tl.fromTo(
+        "[data-hero-badge]",
+        { opacity: 0, y: -16 },
+        { opacity: 1, y: 0, duration: 0.5 }
+      )
+        .fromTo(
+          titleRef.current,
+          { opacity: 0, y: 24 },
+          { opacity: 1, y: 0, duration: 0.7 },
+          "-=0.2"
+        )
+        .fromTo(
+          subtitleRef.current,
+          { opacity: 0, y: 16 },
+          { opacity: 1, y: 0, duration: 0.5 },
+          "-=0.3"
+        )
+        .fromTo(
+          statsRef.current,
+          { opacity: 0, y: 16 },
+          { opacity: 1, y: 0, duration: 0.5 },
+          "-=0.2"
+        )
+        .fromTo(
+          "[data-hero-cta]",
+          { opacity: 0, y: 12 },
+          { opacity: 1, y: 0, duration: 0.5 },
+          "-=0.2"
+        );
 
-      // Subtítulo con fade-up
-      gsap.fromTo(
-        subtitleRef.current,
-        { opacity: 0, y: 20 },
-        { opacity: 1, y: 0, duration: 0.6, ease: "back.out(0.6)", delay: 0.4 }
-      );
-
-      // Estadísticas
-      gsap.fromTo(
-        statsRef.current,
-        { opacity: 0, y: 20 },
-        { opacity: 1, y: 0, duration: 0.6, delay: 0.6 }
-      );
-
-      // Botones
-      gsap.fromTo(
-        buttonsRef.current,
-        { opacity: 0 },
-        { opacity: 1, duration: 0.5, delay: 0.8 }
-      );
-
-      // Parallax suave al scroll
+      // Parallax en scroll
       ScrollTrigger.create({
         trigger: heroRef.current,
         start: "top top",
         end: "bottom top",
-        scrub: 0.5,
+        scrub: 0.6,
         onUpdate: (self) => {
-          gsap.set(titleRef.current, { y: self.progress * 50 });
-          gsap.set(subtitleRef.current, { y: self.progress * 30 });
+          gsap.set(titleRef.current, { y: self.progress * 48 });
+          gsap.set(subtitleRef.current, { y: self.progress * 28 });
         },
       });
     }, heroRef);
@@ -159,81 +151,74 @@ const Hero = () => {
     return () => ctx.revert();
   }, []);
 
-  const scrollToFormulario = () => {
-    const formulario = document.querySelector("#formulario");
-    if (formulario) {
-      formulario.scrollIntoView({ behavior: "smooth" });
-    }
-  };
+  // Mouse parallax con RAF throttle
+  const handleMouseMove = useCallback((e) => {
+    if (window.innerWidth < 768) return;
 
-  const abrirWhatsApp = () => {
-    const numeroTelefono = "5655382350"; // Cambia por el número real
-    const mensaje =
-      "Hola, quiero información sobre los planes y agendar una clase gratis";
-    const url = `https://wa.me/${numeroTelefono}?text=${encodeURIComponent(
-      mensaje
-    )}`;
-    window.open(url, "_blank");
-  };
+    if (rafRef.current) return;
 
-  // Mouse parallax sutil
-  const handleMouseMove = (e) => {
-    if (!heroRef.current || window.innerWidth < 768) return;
+    rafRef.current = requestAnimationFrame(() => {
+      const { clientX, clientY } = e;
+      const { width, height } = heroRef.current.getBoundingClientRect();
+      const x = (clientX / width - 0.5) * 8;
+      const y = (clientY / height - 0.5) * 8;
 
-    const { clientX, clientY } = e;
-    const { width, height } = heroRef.current.getBoundingClientRect();
-    const x = (clientX / width - 0.5) * 10;
-    const y = (clientY / height - 0.5) * 10;
+      gsap.to(titleRef.current, {
+        x: x * 1.8,
+        y: y * 1.8,
+        duration: 0.6,
+        ease: "power1.out",
+      });
+      gsap.to(subtitleRef.current, {
+        x: x * 0.9,
+        y: y * 0.9,
+        duration: 0.6,
+        ease: "power1.out",
+      });
 
-    gsap.to(titleRef.current, {
-      x: x * 2,
-      y: y * 2,
-      duration: 0.5,
-      ease: "power1.out",
+      rafRef.current = null;
     });
+  }, []);
 
-    gsap.to(subtitleRef.current, {
-      x: x,
-      y: y,
-      duration: 0.5,
-      ease: "power1.out",
-    });
-  };
+  const scrollToFormulario = useCallback(() => {
+    document
+      .querySelector("#formulario")
+      ?.scrollIntoView({ behavior: "smooth" });
+  }, []);
 
   return (
     <section
       ref={heroRef}
       onMouseMove={handleMouseMove}
       className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20"
-      id="inicio"
+      id="hero"
     >
-      {/* Fondo optimizado - solo elementos necesarios */}
-      <div className="absolute inset-0">
+      {/* Fondo */}
+      <div className="absolute inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-background/95" />
         <div className="absolute top-20 left-1/4 w-80 h-80 bg-primary/10 rounded-full blur-[100px]" />
         <div className="absolute bottom-20 right-1/4 w-80 h-80 bg-secondary/10 rounded-full blur-[100px]" />
       </div>
 
-      {/* Contenido */}
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto text-center">
-          {/* Badge flotante */}
+          {/* Badge */}
           <div
-            ref={badgeRef}
+            data-hero-badge
             className="inline-flex items-center gap-2 mb-6 px-5 py-2 rounded-full bg-white/5 backdrop-blur-sm border border-white/10"
           >
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary" />
             </span>
-            <span className="text-sm font-medium">
-              {alumnosCount > 0 ? `${alumnosCount}+` : "200+"} alumnos activos
+            <span className="text-sm font-medium text-white">
+              {alumnosCount > 0 ? `${alumnosCount}+` : "184+"} alumnos activos
             </span>
           </div>
 
-          {/* Título principal */}
+          {/* Título */}
           <div ref={titleRef}>
-            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold leading-[1.1] mb-4">
+            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[1.05] mb-4 tracking-tight">
               <span className="bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
                 EVOLUTION
               </span>
@@ -244,124 +229,91 @@ const Hero = () => {
             </h1>
           </div>
 
-          {/* Subtítulo con efecto de tipeo */}
-          <div ref={subtitleRef} className="mb-6">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold">
+          {/* Subtítulo con tipeo */}
+          <div
+            ref={subtitleRef}
+            className="mb-8 h-14 flex items-center justify-center"
+          >
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold">
               <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                 {typedText}
               </span>
-              <span className="animate-blink inline-block w-1 h-8 md:h-10 bg-primary ml-1" />
+              <span className="inline-block w-0.5 h-8 md:h-10 bg-primary ml-1 animate-[blink_0.8s_step-end_infinite]" />
             </h2>
           </div>
 
-          {/* Estadísticas rápidas */}
+          {/* Stats */}
           <div
             ref={statsRef}
-            className="flex justify-center gap-6 md:gap-12 mb-8"
+            className="flex justify-center gap-6 md:gap-12 mb-6"
           >
-            <div className="text-center">
-              <div className="text-2xl md:text-3xl font-bold text-primary">
-                7 a.m
+            {STATS.map((stat, i) => (
+              <div
+                key={stat.label}
+                className="flex items-center gap-6 md:gap-12"
+              >
+                <div className="text-center">
+                  <div className="text-xl md:text-2xl font-bold text-primary tabular-nums">
+                    {stat.value}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {stat.label}
+                  </div>
+                </div>
+                {i < STATS.length - 1 && (
+                  <div className="w-px h-8 bg-gray-800" />
+                )}
               </div>
-              <div className="text-xs text-gray-500">Apertura</div>
-            </div>
-            <div className="w-px h-10 bg-gray-800 my-auto" />
-            <div className="text-center">
-              <div className="text-2xl md:text-3xl font-bold text-secondary">
-                10:00 pm
-              </div>
-              <div className="text-xs text-gray-500">Cierre</div>
-            </div>
-            <div className="w-px h-10 bg-gray-800 my-auto" />
-            <div className="text-center">
-              <div className="text-2xl md:text-3xl font-bold text-primary">
-                Toda la semana
-              </div>
-              <div className="text-xs text-gray-500">Días</div>
-            </div>
+            ))}
           </div>
 
           {/* Descripción */}
-          <p className="text-gray-400 max-w-2xl mx-auto mb-8 text-sm sm:text-base">
-            Horarios flexibles · Mejores precios · Asesoría incluida · Equipos
-            de última generación
+          <p className="text-gray-400 max-w-xl mx-auto mb-8 text-sm sm:text-base leading-relaxed">
+            Horarios flexibles · Mejores precios · Asesoria incluida · Equipos
+            de ultima generacion
           </p>
 
-          {/* Botones CTA */}
+          {/* CTAs */}
           <div
-            ref={buttonsRef}
+            data-hero-cta
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
           >
             <button
               onClick={scrollToFormulario}
-              className="group relative bg-gradient-to-r from-primary to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-semibold py-3.5 px-8 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden shadow-xl shadow-primary/25"
+              className="group relative bg-gradient-to-r from-primary to-primary-600 text-white font-semibold py-3.5 px-8 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden shadow-xl shadow-primary/25"
             >
               <span className="relative z-10 flex items-center gap-2 text-base">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
+                <BsCalendarCheck className="w-5 h-5" />
                 Agendar clase gratis
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
             </button>
 
-            <button
-              onClick={abrirWhatsApp}
-              className="group relative bg-transparent border-2 border-secondary hover:bg-secondary/10 text-white font-semibold py-3.5 px-8 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 overflow-hidden"
+            <a
+              href={`https://wa.me/${PHONE}?text=${WA_MESSAGE}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative flex items-center gap-2 bg-transparent border-2 border-white/20 hover:border-green-500 hover:bg-green-500/10 text-white font-semibold py-3.5 px-8 rounded-xl transition-all duration-300 hover:scale-105 active:scale-95 text-base"
             >
-              <span className="relative z-10 flex items-center gap-2 text-base">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
-                WhatsApp
-              </span>
-            </button> 
+              <FaWhatsapp className="w-5 h-5 text-green-400 group-hover:text-green-300 transition-colors" />
+              WhatsApp
+            </a>
           </div>
 
           {/* Scroll indicator */}
-          <div className="absolute bottom-[-80px] left-1/2 -translate-x-1/2 animate-bounce cursor-pointer">
+          <motion.div
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 cursor-pointer"
+            animate={{ y: [0, 8, 0] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+            onClick={scrollToFormulario}
+            aria-label="Ir al formulario"
+          >
             <div className="w-6 h-10 rounded-full border-2 border-gray-600 flex justify-center">
-              <div className="w-1 h-3 bg-primary rounded-full mt-2 animate-pulse" />
+              <div className="w-1 h-3 bg-primary rounded-full mt-2" />
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
-
-      {/* Estilo para el cursor que parpadea */}
-      <style jsx>{`
-        @keyframes blink {
-          0%,
-          100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0;
-          }
-        }
-        .animate-blink {
-          animation: blink 0.8s step-end infinite;
-        }
-      `}</style>
     </section>
   );
 };

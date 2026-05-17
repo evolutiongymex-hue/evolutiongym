@@ -27,6 +27,15 @@
     opacity: 0.6;
   }
 }
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
 
 .delay-1000 {
   animation-delay: 1000ms;
