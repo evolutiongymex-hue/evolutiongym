@@ -86,3 +86,45 @@ export async function GET(request) {
     );
   }
 }
+
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const { producto_id, cantidad, total } = body;
+
+    if (!producto_id || !cantidad || !total) {
+      return NextResponse.json(
+        { error: "producto_id, cantidad y total son obligatorios" },
+        { status: 400 }
+      );
+    }
+
+    const auth = await getAuthClient();
+    const sheets = getSheetsClient(auth);
+
+    const fecha = new Date().toISOString().split("T")[0];
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: "VENTAS_INVENTARIO!A:A",
+    });
+
+    const nuevoId = response.data.values?.length ?? 1;
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: "VENTAS_INVENTARIO!A:E",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [[nuevoId, producto_id, cantidad, total, fecha]],
+      },
+    });
+
+    return NextResponse.json({ success: true, id: nuevoId });
+  } catch {
+    return NextResponse.json(
+      { error: "Error al registrar la venta" },
+      { status: 500 }
+    );
+  }
+}

@@ -221,56 +221,59 @@ export default function ActivosPage() {
     setIsRegistering(true);
 
     try {
-      const [leadRes, pagoRes] = await Promise.all([
-        fetch("/api/leads/update", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tipo: "nuevo_activo",
-            id,
-            nombre: newClient.nombre.trim(),
-            telefono: telefonoLimpio,
-            fecha_prueba: TODAY,
-            horario: "N/A",
-            estado: "ACTIVO",
-            confirmo: "Si",
-            asistio: "Si",
-            plan: plan.nombre,
-            precio: plan.precio,
-            fecha_pago: newClient.fecha_pago,
-            proximo_pago: proximoPago,
-            metodo_pago: newClient.metodo_pago,
-            meses_incluidos: plan.meses,
-            recibo_url: "",
-          }),
+      // 1. Crear pago primero
+      const pagoRes = await fetch("/api/pagos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cliente_id: id,
+          nombre: newClient.nombre.trim(),
+          fecha_pago: newClient.fecha_pago,
+          monto: plan.precio,
+          metodo_pago: newClient.metodo_pago,
+          plan: plan.nombre,
+          meses: plan.meses,
+          promocion: plan.esPromocion ? "si" : "",
+          usuario: "admin",
         }),
-        fetch("/api/pagos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            cliente_id: id,
-            nombre: newClient.nombre.trim(),
-            fecha_pago: newClient.fecha_pago,
-            monto: plan.precio,
-            metodo_pago: newClient.metodo_pago,
-            plan: plan.nombre,
-            meses: plan.meses,
-            promocion: plan.esPromocion ? "si" : "",
-            usuario: "admin",
-          }),
-        }),
-      ]);
+      });
 
-      if (!leadRes.ok || !pagoRes.ok) throw new Error("Error al registrar");
-
+      if (!pagoRes.ok) throw new Error("Error al registrar pago");
       const pagoData = await pagoRes.json();
       const reciboUrl = APP_URL + "/recibo/" + pagoData.id;
 
+      // 2. Actualizar recibo_url en PAGOS
       await fetch("/api/pagos/" + pagoData.id + "/recibo", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recibo_url: reciboUrl }),
       });
+
+      // 3. Notificar a Make con recibo_url completo
+      const leadRes = await fetch("/api/leads/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "nuevo_activo",
+          id,
+          nombre: newClient.nombre.trim(),
+          telefono: telefonoLimpio,
+          fecha_prueba: TODAY,
+          horario: "N/A",
+          estado: "ACTIVO",
+          confirmo: "Si",
+          asistio: "Si",
+          plan: plan.nombre,
+          precio: plan.precio,
+          fecha_pago: newClient.fecha_pago,
+          proximo_pago: proximoPago,
+          metodo_pago: newClient.metodo_pago,
+          meses_incluidos: plan.meses,
+          recibo_url: reciboUrl,
+        }),
+      });
+
+      if (!leadRes.ok) throw new Error("Error al registrar cliente");
 
       setRegisterStatus(reciboUrl);
       await fetchActivos();
