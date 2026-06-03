@@ -13,6 +13,8 @@ import {
   Calendar,
   Plus,
   AlertTriangle,
+  Search,
+  Pencil,
 } from "lucide-react";
 
 const FILTROS = [
@@ -34,6 +36,7 @@ const NUEVO_PRODUCTO_DEFAULT = {
   stock: "",
   stock_minimo: "",
 };
+const EDITAR_DEFAULT = { nombre: "", precio_venta: "", stock_minimo: "" };
 
 const escapeCsvField = (value) => {
   const str = String(value ?? "");
@@ -53,12 +56,14 @@ export default function InventarioPage() {
     detalle: [],
   });
   const [filtro, setFiltro] = useState("dia");
+  const [busqueda, setBusqueda] = useState("");
 
   const [activeModal, setActiveModal] = useState(null);
   const [selectedProducto, setSelectedProducto] = useState(null);
   const [cantidad, setCantidad] = useState(1);
   const [cantidadError, setCantidadError] = useState("");
   const [nuevoProducto, setNuevoProducto] = useState(NUEVO_PRODUCTO_DEFAULT);
+  const [editarData, setEditarData] = useState(EDITAR_DEFAULT);
   const [productoError, setProductoError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState("");
@@ -76,11 +81,8 @@ export default function InventarioPage() {
         ventasRes.json(),
       ]);
 
-      if (productosData.success) {
-        setProductos(productosData.data);
-      } else {
-        setError(productosData.error || "Error al cargar productos");
-      }
+      if (productosData.success) setProductos(productosData.data);
+      else setError(productosData.error || "Error al cargar productos");
 
       if (ventasData.success) {
         setVentas({
@@ -100,12 +102,26 @@ export default function InventarioPage() {
     fetchData();
   }, [fetchData]);
 
+  const productosFiltrados = useMemo(() => {
+    if (!busqueda.trim()) return productos;
+    return productos.filter((p) =>
+      p.nombre?.toLowerCase().includes(busqueda.toLowerCase())
+    );
+  }, [productos, busqueda]);
+
   const abrirModal = useCallback((tipo, producto = null) => {
     setSelectedProducto(producto);
     setCantidad(1);
     setCantidadError("");
     setProductoError("");
     setActionSuccess("");
+    if (tipo === "editar" && producto) {
+      setEditarData({
+        nombre: producto.nombre,
+        precio_venta: String(producto.precio_venta),
+        stock_minimo: String(producto.stock_minimo),
+      });
+    }
     setActiveModal(tipo);
   }, []);
 
@@ -117,6 +133,7 @@ export default function InventarioPage() {
     setProductoError("");
     setActionSuccess("");
     setNuevoProducto(NUEVO_PRODUCTO_DEFAULT);
+    setEditarData(EDITAR_DEFAULT);
   }, []);
 
   const actualizarStock = useCallback(
@@ -158,30 +175,25 @@ export default function InventarioPage() {
     setIsSubmitting(true);
     try {
       const total = cantidad * selectedProducto.precio_venta;
-      const [ventaRes] = await Promise.all([
-        fetch("/api/inventario/ventas", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            producto_id: selectedProducto.id,
-            cantidad,
-            total,
-          }),
+      const ventaRes = await fetch("/api/inventario/ventas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          producto_id: selectedProducto.id,
+          cantidad,
+          total,
         }),
-      ]);
-
+      });
       if (!ventaRes.ok) {
         const d = await ventaRes.json();
         throw new Error(d.error || "Error al registrar venta");
       }
-
       const resultado = await actualizarStock(
         selectedProducto.id,
         cantidad,
         "vender"
       );
       if (resultado !== true) throw new Error(resultado);
-
       setActionSuccess("Venta registrada: $" + total.toLocaleString());
       setTimeout(cerrarModal, 1800);
     } catch (err) {
@@ -197,7 +209,6 @@ export default function InventarioPage() {
       setCantidadError("Ingresa una cantidad valida");
       return;
     }
-
     setIsSubmitting(true);
     const resultado = await actualizarStock(
       selectedProducto.id,
@@ -205,7 +216,6 @@ export default function InventarioPage() {
       "agregar"
     );
     setIsSubmitting(false);
-
     if (resultado === true) {
       setActionSuccess("Stock actualizado correctamente");
       setTimeout(cerrarModal, 1500);
@@ -227,7 +237,6 @@ export default function InventarioPage() {
       setProductoError("El precio debe ser mayor a 0");
       return;
     }
-
     setIsSubmitting(true);
     try {
       const response = await fetch("/api/inventario", {
@@ -253,6 +262,42 @@ export default function InventarioPage() {
       setIsSubmitting(false);
     }
   }, [nuevoProducto, fetchData, cerrarModal]);
+
+  const guardarEdicion = useCallback(async () => {
+    setProductoError("");
+    if (!editarData.nombre.trim()) {
+      setProductoError("El nombre es obligatorio");
+      return;
+    }
+    if (!editarData.precio_venta || Number(editarData.precio_venta) <= 0) {
+      setProductoError("El precio debe ser mayor a 0");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/inventario", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedProducto.id,
+          nombre: editarData.nombre.trim(),
+          precio_venta: parseInt(editarData.precio_venta),
+          stock_minimo: parseInt(editarData.stock_minimo) || 5,
+        }),
+      });
+      if (!response.ok) {
+        const d = await response.json();
+        throw new Error(d.error || "Error al actualizar producto");
+      }
+      await fetchData();
+      setActionSuccess("Producto actualizado correctamente");
+      setTimeout(cerrarModal, 1500);
+    } catch (err) {
+      setProductoError(err.message || "Error al actualizar el producto");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [editarData, selectedProducto, fetchData, cerrarModal]);
 
   const exportarCSV = useCallback(() => {
     const headers = ["ID", "Nombre", "Stock", "Precio", "Stock Minimo"];
@@ -347,7 +392,7 @@ export default function InventarioPage() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs periodo */}
       <div className="flex gap-2 mb-6">
         {FILTROS.map(({ key, label }) => (
           <button
@@ -366,7 +411,7 @@ export default function InventarioPage() {
         ))}
       </div>
 
-      {/* Cards resumen ventas */}
+      {/* Cards resumen */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         <div className="bg-green-500/5 rounded-xl border border-green-500/20 p-5">
           <div className="flex items-center gap-2 mb-3">
@@ -394,8 +439,29 @@ export default function InventarioPage() {
 
       {/* Tabla productos */}
       <div className="bg-gray-900/40 rounded-xl border border-gray-800 overflow-hidden mb-8">
-        <div className="px-5 py-4 border-b border-gray-800">
-          <h2 className="text-white font-semibold text-sm">Productos</h2>
+        <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between gap-4">
+          <h2 className="text-white font-semibold text-sm flex-shrink-0">
+            Productos
+          </h2>
+          {/* Buscador */}
+          <div className="relative max-w-xs w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input
+              type="text"
+              placeholder="Buscar producto..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 w-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            {busqueda && (
+              <button
+                onClick={() => setBusqueda("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -414,17 +480,19 @@ export default function InventarioPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/60">
-              {productos.length === 0 ? (
+              {productosFiltrados.length === 0 ? (
                 <tr>
                   <td
                     colSpan={5}
                     className="text-center py-10 text-gray-500 text-sm"
                   >
-                    No hay productos registrados
+                    {busqueda
+                      ? "No hay productos que coincidan"
+                      : "No hay productos registrados"}
                   </td>
                 </tr>
               ) : (
-                productos.map((producto) => {
+                productosFiltrados.map((producto) => {
                   const isLow = producto.stock <= producto.stock_minimo;
                   return (
                     <tr
@@ -482,6 +550,13 @@ export default function InventarioPage() {
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/15 text-blue-400 border border-blue-500/25 hover:bg-blue-500/25 rounded-lg text-xs font-medium transition-colors disabled:opacity-40"
                           >
                             <ShoppingCart className="w-3 h-3" /> Vender
+                          </button>
+                          <button
+                            onClick={() => abrirModal("editar", producto)}
+                            disabled={updatingId === producto.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700/50 text-gray-400 border border-gray-700 hover:bg-gray-700 hover:text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-40"
+                          >
+                            <Pencil className="w-3 h-3" />
                           </button>
                         </div>
                       </td>
@@ -570,12 +645,12 @@ export default function InventarioPage() {
               className="bg-gray-900 rounded-2xl max-w-md w-full p-6 border border-gray-800"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header modal */}
               <div className="flex justify-between items-center mb-5">
                 <h2 className="text-lg font-bold text-white">
                   {activeModal === "producto" && "Nuevo producto"}
                   {activeModal === "venta" && "Registrar venta"}
                   {activeModal === "stock" && "Agregar stock"}
+                  {activeModal === "editar" && "Editar producto"}
                 </h2>
                 <button
                   onClick={cerrarModal}
@@ -585,14 +660,13 @@ export default function InventarioPage() {
                 </button>
               </div>
 
-              {/* Exito */}
               {actionSuccess && (
                 <div className="mb-4 px-4 py-3 bg-green-500/10 border border-green-500/25 rounded-xl text-green-400 text-sm">
                   {actionSuccess}
                 </div>
               )}
 
-              {/* Modal Nuevo Producto */}
+              {/* Nuevo producto */}
               {activeModal === "producto" && (
                 <div className="space-y-4">
                   {productoError && (
@@ -660,7 +734,7 @@ export default function InventarioPage() {
                         }))
                       }
                       className={inputClass}
-                      placeholder="Ej: 10"
+                      placeholder="Ej: 5"
                     />
                   </div>
                   <div className="flex gap-3 pt-2">
@@ -681,7 +755,81 @@ export default function InventarioPage() {
                 </div>
               )}
 
-              {/* Modal Venta */}
+              {/* Editar producto */}
+              {activeModal === "editar" && selectedProducto && (
+                <div className="space-y-4">
+                  {productoError && (
+                    <div className="px-4 py-3 bg-red-500/10 border border-red-500/25 rounded-xl text-red-400 text-sm">
+                      {productoError}
+                    </div>
+                  )}
+                  <div className="px-4 py-3 bg-gray-800/50 rounded-xl text-xs text-gray-500">
+                    Stock actual:{" "}
+                    <span className="text-white font-semibold">
+                      {selectedProducto.stock} unidades
+                    </span>{" "}
+                    — para cambiar stock usa el boton +Stock
+                  </div>
+                  <div>
+                    <label className={labelClass}>Nombre *</label>
+                    <input
+                      type="text"
+                      value={editarData.nombre}
+                      onChange={(e) =>
+                        setEditarData((p) => ({ ...p, nombre: e.target.value }))
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Precio de venta *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editarData.precio_venta}
+                      onChange={(e) =>
+                        setEditarData((p) => ({
+                          ...p,
+                          precio_venta: e.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Stock minimo (alerta)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editarData.stock_minimo}
+                      onChange={(e) =>
+                        setEditarData((p) => ({
+                          ...p,
+                          stock_minimo: e.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={guardarEdicion}
+                      disabled={isSubmitting}
+                      className="flex-1 py-2.5 bg-primary hover:brightness-110 rounded-xl font-semibold text-sm text-white disabled:opacity-50 transition-all"
+                    >
+                      {isSubmitting ? "Guardando..." : "Guardar cambios"}
+                    </button>
+                    <button
+                      onClick={cerrarModal}
+                      className="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm text-gray-300 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Venta */}
               {activeModal === "venta" && selectedProducto && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -746,7 +894,7 @@ export default function InventarioPage() {
                 </div>
               )}
 
-              {/* Modal Stock */}
+              {/* Stock */}
               {activeModal === "stock" && selectedProducto && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3 text-sm">

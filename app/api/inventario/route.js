@@ -82,13 +82,10 @@ export async function POST(request) {
 export async function PUT(request) {
   try {
     const body = await request.json();
-    const { id, cantidad, tipo } = body;
+    const { id, cantidad, tipo, nombre, precio_venta, stock_minimo } = body;
 
-    if (!id || cantidad === undefined) {
-      return NextResponse.json(
-        { error: "id y cantidad son obligatorios" },
-        { status: 400 }
-      );
+    if (!id) {
+      return NextResponse.json({ error: "id es obligatorio" }, { status: 400 });
     }
 
     const auth = await getAuthClient();
@@ -110,6 +107,39 @@ export async function PUT(request) {
     }
 
     const producto = productos[rowIndex];
+    const hoy = new Date().toISOString().split("T")[0];
+
+    // Modo edicion — actualiza nombre, precio y stock minimo
+    if (
+      nombre !== undefined ||
+      precio_venta !== undefined ||
+      stock_minimo !== undefined
+    ) {
+      const nuevoNombre = nombre ?? producto[1];
+      const stockActual = parseInt(producto[2]) || 0;
+      const nuevoPrecio = precio_venta ?? (parseInt(producto[3]) || 0);
+      const nuevoStockMin = stock_minimo ?? (parseInt(producto[4]) || 5);
+
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: `INVENTARIO!B${rowIndex + 1}:F${rowIndex + 1}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [[nuevoNombre, stockActual, nuevoPrecio, nuevoStockMin, hoy]],
+        },
+      });
+
+      return NextResponse.json({ success: true });
+    }
+
+    // Modo stock — agregar o vender
+    if (cantidad === undefined) {
+      return NextResponse.json(
+        { error: "cantidad es obligatorio para actualizar stock" },
+        { status: 400 }
+      );
+    }
+
     const stockActual = parseInt(producto[2]) || 0;
     let nuevoStock = stockActual;
 
@@ -125,8 +155,6 @@ export async function PUT(request) {
       nuevoStock = stockActual - cantidad;
     }
 
-    const hoy = new Date().toISOString().split("T")[0];
-
     await sheets.spreadsheets.values.update({
       spreadsheetId: SHEET_ID,
       range: `INVENTARIO!C${rowIndex + 1}:F${rowIndex + 1}`,
@@ -139,7 +167,7 @@ export async function PUT(request) {
     return NextResponse.json({ success: true, nuevoStock });
   } catch {
     return NextResponse.json(
-      { error: "Error al actualizar stock" },
+      { error: "Error al actualizar producto" },
       { status: 500 }
     );
   }

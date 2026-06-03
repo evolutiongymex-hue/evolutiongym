@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   RefreshCw,
   Users,
@@ -10,35 +11,13 @@ import {
   AlertCircle,
   Loader2,
   ThumbsUp,
-  CheckCircle,
-  XCircle,
   Search,
   X,
+  DollarSign,
+  CheckCircle,
 } from "lucide-react";
 
-const normalizeBoolean = (value) =>
-  value === "Si" || value === "Si" || value === true || value === "true";
-
-const getLeadStatus = (lead) => {
-  if (normalizeBoolean(lead.asistio)) return "asistio";
-  if (normalizeBoolean(lead.confirmo)) return "confirmo";
-  return "nuevo";
-};
-
-const STATUS_CONFIG = {
-  nuevo: {
-    label: "Nuevo",
-    class: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
-  },
-  confirmo: {
-    label: "Confirmo",
-    class: "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20",
-  },
-  asistio: {
-    label: "Asistio",
-    class: "bg-green-500/10 text-green-400 border border-green-500/20",
-  },
-};
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState([]);
@@ -47,6 +26,12 @@ export default function LeadsPage() {
   const [error, setError] = useState("");
   const [filtroNombre, setFiltroNombre] = useState("");
   const [updateError, setUpdateError] = useState("");
+
+  const [showPagoModal, setShowPagoModal] = useState(false);
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [metodoPago, setMetodoPago] = useState("efectivo");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pagoStatus, setPagoStatus] = useState(null);
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -57,7 +42,7 @@ export default function LeadsPage() {
       if (data.success) {
         setLeads(data.data);
       } else {
-        setError(data.error || "Error al cargar leads");
+        setError(data.error || "Error al cargar visitas");
       }
     } catch {
       setError("Error de conexion. Verifica tu red.");
@@ -70,44 +55,90 @@ export default function LeadsPage() {
     fetchLeads();
   }, [fetchLeads]);
 
-  const updateLead = useCallback(
-    async (id, campo, valor) => {
-      const snapshot = leads.find((l) => l.id === id);
+  const inscribir = useCallback(async (id) => {
+    setUpdatingId(id);
+    setUpdateError("");
 
-      setLeads((prev) =>
-        prev.map((lead) =>
-          lead.id === id ? { ...lead, [campo]: valor } : lead
-        )
-      );
-      setUpdatingId(id);
-      setUpdateError("");
-
-      try {
-        const response = await fetch("/api/leads/update", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, campo, valor }),
-        });
-        if (!response.ok) {
-          setLeads((prev) =>
-            prev.map((lead) => (lead.id === id ? snapshot : lead))
-          );
-          setUpdateError("Error al actualizar. Intenta de nuevo.");
-        }
-      } catch {
-        setLeads((prev) =>
-          prev.map((lead) => (lead.id === id ? snapshot : lead))
-        );
-        setUpdateError("Error de conexion al actualizar.");
-      } finally {
-        setUpdatingId(null);
+    try {
+      const response = await fetch("/api/leads/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, campo: "estado", valor: "ACTIVO" }),
+      });
+      if (response.ok) {
+        // Remover de la lista local inmediatamente
+        setLeads((prev) => prev.filter((lead) => lead.id !== id));
+      } else {
+        setUpdateError("Error al inscribir. Intenta de nuevo.");
       }
-    },
-    [leads]
-  );
+    } catch {
+      setUpdateError("Error de conexion al inscribir.");
+    } finally {
+      setUpdatingId(null);
+    }
+  }, []);
 
+  const abrirModalPago = useCallback((lead) => {
+    setSelectedLead(lead);
+    setMetodoPago("efectivo");
+    setPagoStatus(null);
+    setShowPagoModal(true);
+  }, []);
+
+  const registrarPago = useCallback(async () => {
+    if (!selectedLead) return;
+    setIsSubmitting(true);
+    setPagoStatus(null);
+
+    try {
+      const fechaHoy = new Date().toISOString().split("T")[0];
+
+      const pagoRes = await fetch("/api/pagos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cliente_id: selectedLead.id,
+          nombre: selectedLead.nombre,
+          fecha_pago: fechaHoy,
+          monto: 50,
+          metodo_pago: metodoPago,
+          plan: "Visita",
+          meses: 0,
+          promocion: "",
+          usuario: "admin",
+        }),
+      });
+
+      if (!pagoRes.ok) throw new Error("Error al registrar pago");
+      const pagoData = await pagoRes.json();
+      const reciboUrl = APP_URL + "/recibo/" + pagoData.id;
+
+      await fetch("/api/pagos/" + pagoData.id + "/recibo", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recibo_url: reciboUrl }),
+      });
+
+      setPagoStatus({
+        type: "success",
+        text: "Pago de $50 registrado. Recibo: " + reciboUrl,
+      });
+      await fetchLeads();
+    } catch {
+      setPagoStatus({
+        type: "error",
+        text: "Error al registrar el pago. Intenta de nuevo.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [selectedLead, metodoPago, fetchLeads]);
+
+  // Ahora
   const leadsFiltrados = leads.filter((lead) => {
     if (lead.estado === "ACTIVO") return false;
+    if (lead.estado === "INACTIVO") return false;
+    if (lead.estado === "ELIMINADO") return false;
     if (
       filtroNombre &&
       !lead.nombre?.toLowerCase().includes(filtroNombre.toLowerCase())
@@ -120,7 +151,7 @@ export default function LeadsPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
-        <span className="ml-3 text-gray-400">Cargando leads...</span>
+        <span className="ml-3 text-gray-400">Cargando visitas...</span>
       </div>
     );
   }
@@ -147,14 +178,16 @@ export default function LeadsPage() {
           <div>
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
               <Users className="w-6 h-6 text-primary" />
-              Leads
+              Visitas
             </h1>
             <p className="text-gray-400 text-sm mt-0.5">
-              Clientes que agendaron clase gratis
+              Clientes que agendaron su visita
             </p>
             <p className="text-gray-600 text-xs mt-1">
               {leadsFiltrados.length}{" "}
-              {filtroNombre ? "resultado(s) encontrado(s)" : "leads activos"}
+              {filtroNombre
+                ? "resultado(s) encontrado(s)"
+                : "visitas pendientes"}
             </p>
           </div>
           <button
@@ -182,8 +215,7 @@ export default function LeadsPage() {
               onClick={() => setFiltroNombre("")}
               className="flex items-center gap-1.5 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm text-gray-300 transition-colors"
             >
-              <X className="w-3.5 h-3.5" />
-              Limpiar
+              <X className="w-3.5 h-3.5" /> Limpiar
             </button>
           )}
         </div>
@@ -203,8 +235,8 @@ export default function LeadsPage() {
           <AlertCircle className="w-10 h-10 text-gray-700 mx-auto mb-3" />
           <p className="text-gray-400 text-sm">
             {filtroNombre
-              ? "No hay leads que coincidan con la busqueda"
-              : "No hay leads registrados aun"}
+              ? "No hay visitas que coincidan"
+              : "No hay visitas pendientes"}
           </p>
         </div>
       ) : (
@@ -220,32 +252,19 @@ export default function LeadsPage() {
                     Telefono
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Fecha prueba
+                    Fecha visita
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Horario
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Confirmo
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Asistio
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Accion
+                    Acciones
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/60">
                 {leadsFiltrados.map((lead) => {
-                  const status = getLeadStatus(lead);
                   const isUpdating = updatingId === lead.id;
-                  const confirmo = normalizeBoolean(lead.confirmo);
-                  const asistio = normalizeBoolean(lead.asistio);
-
                   return (
                     <tr
                       key={lead.id}
@@ -276,84 +295,28 @@ export default function LeadsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={
-                            "inline-flex px-2.5 py-1 rounded-lg text-[11px] font-semibold " +
-                            STATUS_CONFIG[status].class
-                          }
-                        >
-                          {STATUS_CONFIG[status].label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() =>
-                            updateLead(
-                              lead.id,
-                              "confirmo",
-                              confirmo ? "Pendiente" : "Si"
-                            )
-                          }
-                          disabled={isUpdating}
-                          className={
-                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40 " +
-                            (confirmo
-                              ? "bg-green-500/15 text-green-400 border border-green-500/25 hover:bg-green-500/25"
-                              : "bg-gray-800 text-gray-500 border border-gray-700 hover:text-gray-300")
-                          }
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : confirmo ? (
-                            <CheckCircle className="w-3 h-3" />
-                          ) : (
-                            <XCircle className="w-3 h-3" />
-                          )}
-                          {confirmo ? "Si" : "No"}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() =>
-                            updateLead(
-                              lead.id,
-                              "asistio",
-                              asistio ? "Pendiente" : "Si"
-                            )
-                          }
-                          disabled={isUpdating}
-                          className={
-                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-40 " +
-                            (asistio
-                              ? "bg-green-500/15 text-green-400 border border-green-500/25 hover:bg-green-500/25"
-                              : "bg-gray-800 text-gray-500 border border-gray-700 hover:text-gray-300")
-                          }
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : asistio ? (
-                            <CheckCircle className="w-3 h-3" />
-                          ) : (
-                            <XCircle className="w-3 h-3" />
-                          )}
-                          {asistio ? "Si" : "No"}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() =>
-                            updateLead(lead.id, "estado", "ACTIVO")
-                          }
-                          disabled={isUpdating}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/15 text-primary border border-primary/25 hover:bg-primary/25 transition-colors disabled:opacity-40"
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <ThumbsUp className="w-3 h-3" />
-                          )}
-                          Inscribir
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => abrirModalPago(lead)}
+                            disabled={isUpdating}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-yellow-500/15 text-yellow-400 border border-yellow-500/25 hover:bg-yellow-500/25 transition-colors disabled:opacity-40"
+                          >
+                            <DollarSign className="w-3 h-3" />
+                            Pago $50
+                          </button>
+                          <button
+                            onClick={() => inscribir(lead.id)}
+                            disabled={isUpdating}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary/15 text-primary border border-primary/25 hover:bg-primary/25 transition-colors disabled:opacity-40"
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <ThumbsUp className="w-3 h-3" />
+                            )}
+                            Inscribir
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -363,6 +326,120 @@ export default function LeadsPage() {
           </div>
         </div>
       )}
+
+      {/* Modal Pago $50 */}
+      <AnimatePresence>
+        {showPagoModal && selectedLead && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={() => setShowPagoModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-gray-900 rounded-2xl max-w-sm w-full p-6 border border-gray-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-5">
+                <div>
+                  <h2 className="text-lg font-bold text-white">
+                    Registrar visita
+                  </h2>
+                  <p className="text-gray-500 text-sm">{selectedLead.nombre}</p>
+                </div>
+                <button
+                  onClick={() => setShowPagoModal(false)}
+                  className="text-gray-500 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {pagoStatus ? (
+                <div className="text-center py-2">
+                  <CheckCircle className="w-10 h-10 text-green-400 mx-auto mb-3" />
+                  <p
+                    className={`text-sm font-medium mb-4 ${
+                      pagoStatus.type === "success"
+                        ? "text-green-400"
+                        : "text-red-400"
+                    }`}
+                  >
+                    {pagoStatus.text}
+                  </p>
+                  <button
+                    onClick={() => setShowPagoModal(false)}
+                    className="w-full py-2.5 bg-primary rounded-xl text-sm font-semibold text-white"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Monto fijo */}
+                  <div className="px-4 py-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Monto visita</span>
+                    <span className="text-2xl font-black text-yellow-400">
+                      $50
+                    </span>
+                  </div>
+
+                  {/* Metodo de pago */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                      Metodo de pago
+                    </label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {["efectivo", "transferencia"].map((metodo) => (
+                        <button
+                          key={metodo}
+                          type="button"
+                          onClick={() => setMetodoPago(metodo)}
+                          className={`py-2.5 rounded-xl text-xs font-semibold transition-all border capitalize ${
+                            metodoPago === metodo
+                              ? "bg-primary border-primary text-white"
+                              : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                          }`}
+                        >
+                          {metodo}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      onClick={registrarPago}
+                      disabled={isSubmitting}
+                      className="flex-1 py-2.5 bg-primary hover:brightness-110 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50"
+                    >
+                      {isSubmitting ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />{" "}
+                          Registrando...
+                        </span>
+                      ) : (
+                        "Confirmar pago"
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setShowPagoModal(false)}
+                      className="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm text-gray-300 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -31,13 +31,13 @@ const schema = z.object({
 });
 
 const HORARIOS = [
-  { value: "Manana", label: "Manana", sub: "7am – 12pm" },
-  { value: "Tarde", label: "Tarde", sub: "12pm – 6pm" },
-  { value: "Noche", label: "Noche", sub: "6pm – 10pm" },
+  { value: "Manana", label: "Manana", sub: "7am - 12pm" },
+  { value: "Tarde", label: "Tarde", sub: "12pm - 6pm" },
+  { value: "Noche", label: "Noche", sub: "6pm - 10pm" },
 ];
 
 const BENEFICIOS = [
-  { icon: FiCheck, text: "Clase gratis sin compromiso" },
+  { icon: FiCheck, text: "Solo $50 por tu visita" },
   { icon: FiClock, text: "Elige el dia que quieras" },
   { icon: FiShield, text: "Respuesta en menos de 15 min" },
 ];
@@ -81,20 +81,17 @@ const Formulario = () => {
   const onSubmit = useCallback(
     async (data) => {
       setSubmitStatus(null);
-
       try {
         const response = await fetch("/api/submit-lead", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         });
-
         const result = await response.json();
-
         if (response.ok) {
           setSubmitStatus({
             type: "success",
-            text: result.message || "Clase agendada. Te contactamos pronto.",
+            text: result.message || "Visita agendada. Te contactamos pronto.",
           });
           reset();
         } else {
@@ -130,7 +127,7 @@ const Formulario = () => {
             <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20">
               <FiCalendar className="w-3.5 h-3.5 text-primary" />
               <span className="text-primary text-xs font-bold tracking-widest uppercase">
-                Reserva tu clase
+                Agenda tu visita
               </span>
             </div>
 
@@ -143,7 +140,7 @@ const Formulario = () => {
 
             <p className="text-gray-400 text-base mb-8 leading-relaxed">
               Completa el formulario y agenda tu{" "}
-              <span className="text-primary font-semibold">clase gratis</span>{" "}
+              <span className="text-primary font-semibold">visita por $50</span>{" "}
               en el dia que prefieras.
             </p>
 
@@ -158,29 +155,26 @@ const Formulario = () => {
               ))}
             </ul>
 
-            {/* Separador con glow */}
             <div className="mt-10 pt-8 border-t border-white/5">
               <p className="text-gray-600 text-xs">
                 Al enviar aceptas que te contactemos por WhatsApp para confirmar
-                tu clase.
+                tu visita.
               </p>
             </div>
           </motion.div>
 
-          {/* Columna derecha — Formulario */}
+          {/* Columna derecha */}
           <motion.div variants={itemVariants}>
             <div className="relative rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-6 md:p-8">
-              {/* Glow decorativo */}
               <div className="absolute -top-px left-1/2 -translate-x-1/2 w-32 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
 
               <h3 className="text-xl font-bold mb-1 text-center text-white">
-                Agenda tu clase gratis
+                Agenda tu visita
               </h3>
               <p className="text-gray-500 text-sm text-center mb-6">
-                Sin costo, sin compromiso
+                Solo $50 en caja al llegar
               </p>
 
-              {/* Status message */}
               {submitStatus && (
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
@@ -200,7 +194,6 @@ const Formulario = () => {
                 noValidate
                 className="space-y-5"
               >
-                {/* Nombre */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                     Nombre completo *
@@ -223,7 +216,6 @@ const Formulario = () => {
                   )}
                 </div>
 
-                {/* Telefono */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                     WhatsApp *
@@ -250,7 +242,6 @@ const Formulario = () => {
                   )}
                 </div>
 
-                {/* Fecha */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                     Fecha de visita *
@@ -273,7 +264,6 @@ const Formulario = () => {
                   )}
                 </div>
 
-                {/* Horario */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
                     Horario preferido *
@@ -314,7 +304,6 @@ const Formulario = () => {
                   )}
                 </div>
 
-                {/* Submit */}
                 <motion.button
                   type="submit"
                   disabled={isSubmitting}
@@ -350,7 +339,7 @@ const Formulario = () => {
                       Enviando...
                     </span>
                   ) : (
-                    "Agendar clase gratis"
+                    "Agendar visita por $50"
                   )}
                 </motion.button>
               </form>

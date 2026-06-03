@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   RefreshCw,
@@ -12,6 +12,9 @@ import {
   X,
   UserPlus,
   CheckCircle,
+  AlertTriangle,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 
 const PLANES = {
@@ -54,19 +57,97 @@ const calcularProximoPago = (fechaPago, mesesIncluidos) => {
   ].join("-");
 };
 
+// Calcula dias restantes desde hoy hasta proximo_pago
+const diasRestantes = (proximoPago) => {
+  if (!proximoPago) return null;
+  try {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    // Soporta YYYY-MM-DD y D/M/YYYY
+    let fecha;
+    if (proximoPago.includes("-")) {
+      fecha = new Date(proximoPago + "T00:00:00");
+    } else {
+      const [d, m, y] = proximoPago.split("/").map(Number);
+      fecha = new Date(y, m - 1, d);
+    }
+    const diff = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
+    return diff;
+  } catch {
+    return null;
+  }
+};
+
+const getEstadoPago = (proximoPago) => {
+  const dias = diasRestantes(proximoPago);
+  if (dias === null) return "sin_fecha";
+  if (dias < 0) return "vencido";
+  if (dias <= 3) return "urgente";
+  if (dias <= 10) return "proximo";
+  return "corriente";
+};
+
+const ESTADO_CONFIG = {
+  vencido: {
+    label: "Vencido",
+    color: "text-red-400",
+    bg: "bg-red-500/5",
+    border: "border-red-500/20",
+    badge: "bg-red-500/15 text-red-400 border-red-500/25",
+    icon: AlertTriangle,
+  },
+  urgente: {
+    label: "Vence pronto",
+    color: "text-orange-400",
+    bg: "bg-orange-500/5",
+    border: "border-orange-500/20",
+    badge: "bg-orange-500/15 text-orange-400 border-orange-500/25",
+    icon: AlertTriangle,
+  },
+  proximo: {
+    label: "Por vencer",
+    color: "text-yellow-400",
+    bg: "bg-yellow-500/5",
+    border: "border-yellow-500/20",
+    badge: "bg-yellow-500/15 text-yellow-400 border-yellow-500/25",
+    icon: Clock,
+  },
+  corriente: {
+    label: "Al corriente",
+    color: "text-green-400",
+    bg: "",
+    border: "",
+    badge: "bg-green-500/15 text-green-400 border-green-500/25",
+    icon: CheckCircle2,
+  },
+  sin_fecha: {
+    label: "Sin fecha",
+    color: "text-gray-500",
+    bg: "",
+    border: "",
+    badge: "bg-gray-700/50 text-gray-500 border-gray-700",
+    icon: Clock,
+  },
+};
+
+const TABS = [
+  { key: "todos", label: "Todos" },
+  { key: "urgente", label: "Vencen en 3 dias" },
+  { key: "proximo", label: "Por vencer" },
+  { key: "corriente", label: "Al corriente" },
+  { key: "vencido", label: "Vencidos" },
+];
+
 const inputClass =
   "w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 [color-scheme:dark]";
 const labelClass =
   "block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5";
-
 const TODAY = new Date().toISOString().split("T")[0];
-
 const PAYMENT_DEFAULT = {
   fecha_pago: TODAY,
   planKey: "Mensual",
   metodo_pago: "transferencia",
 };
-
 const REGISTER_DEFAULT = {
   nombre: "",
   telefono: "",
@@ -81,6 +162,7 @@ export default function ActivosPage() {
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState("");
   const [filtroNombre, setFiltroNombre] = useState("");
+  const [tabActivo, setTabActivo] = useState("todos");
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -116,6 +198,39 @@ export default function ActivosPage() {
     fetchActivos();
   }, [fetchActivos]);
 
+  // Conteos por tab para los badges
+  const conteos = useMemo(() => {
+    const base = activos.filter(
+      (m) =>
+        !filtroNombre ||
+        m.nombre?.toLowerCase().includes(filtroNombre.toLowerCase())
+    );
+    return {
+      todos: base.length,
+      urgente: base.filter((m) => getEstadoPago(m.proximo_pago) === "urgente")
+        .length,
+      proximo: base.filter((m) => getEstadoPago(m.proximo_pago) === "proximo")
+        .length,
+      corriente: base.filter(
+        (m) => getEstadoPago(m.proximo_pago) === "corriente"
+      ).length,
+      vencido: base.filter((m) => getEstadoPago(m.proximo_pago) === "vencido")
+        .length,
+    };
+  }, [activos, filtroNombre]);
+
+  const activosFiltrados = useMemo(() => {
+    return activos.filter((m) => {
+      if (
+        filtroNombre &&
+        !m.nombre?.toLowerCase().includes(filtroNombre.toLowerCase())
+      )
+        return false;
+      if (tabActivo === "todos") return true;
+      return getEstadoPago(m.proximo_pago) === tabActivo;
+    });
+  }, [activos, filtroNombre, tabActivo]);
+
   const abrirModalPago = useCallback((miembro) => {
     setSelectedMember(miembro);
     setPaymentData({
@@ -131,7 +246,6 @@ export default function ActivosPage() {
       setPaymentStatus({ type: "error", text: "Selecciona una fecha de pago" });
       return;
     }
-
     const plan = PLANES[paymentData.planKey];
     const proximoPago = calcularProximoPago(paymentData.fecha_pago, plan.meses);
     setIsSubmitting(true);
@@ -153,7 +267,6 @@ export default function ActivosPage() {
           usuario: "admin",
         }),
       });
-
       if (!pagoRes.ok) throw new Error("Error al guardar pago");
       const pagoData = await pagoRes.json();
       const reciboUrl = APP_URL + "/recibo/" + pagoData.id;
@@ -198,7 +311,6 @@ export default function ActivosPage() {
 
   const registrarClienteActivo = useCallback(async () => {
     setRegisterError("");
-
     const telefonoLimpio = newClient.telefono.replace(/\D/g, "");
     if (!newClient.nombre.trim()) {
       setRegisterError("El nombre es obligatorio");
@@ -217,11 +329,9 @@ export default function ActivosPage() {
     const proximoPago = calcularProximoPago(newClient.fecha_pago, plan.meses);
     const id =
       Date.now().toString() + "-" + Math.random().toString(36).substring(2, 8);
-
     setIsRegistering(true);
 
     try {
-      // 1. Crear pago primero
       const pagoRes = await fetch("/api/pagos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -237,19 +347,16 @@ export default function ActivosPage() {
           usuario: "admin",
         }),
       });
-
       if (!pagoRes.ok) throw new Error("Error al registrar pago");
       const pagoData = await pagoRes.json();
       const reciboUrl = APP_URL + "/recibo/" + pagoData.id;
 
-      // 2. Actualizar recibo_url en PAGOS
       await fetch("/api/pagos/" + pagoData.id + "/recibo", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recibo_url: reciboUrl }),
       });
 
-      // 3. Notificar a Make con recibo_url completo
       const leadRes = await fetch("/api/leads/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -272,7 +379,6 @@ export default function ActivosPage() {
           recibo_url: reciboUrl,
         }),
       });
-
       if (!leadRes.ok) throw new Error("Error al registrar cliente");
 
       setRegisterStatus(reciboUrl);
@@ -308,12 +414,6 @@ export default function ActivosPage() {
     [fetchActivos]
   );
 
-  const activosFiltrados = activos.filter(
-    (m) =>
-      !filtroNombre ||
-      m.nombre?.toLowerCase().includes(filtroNombre.toLowerCase())
-  );
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -340,6 +440,7 @@ export default function ActivosPage() {
 
   return (
     <div>
+      {/* Header */}
       <div className="mb-6">
         <div className="flex justify-between items-start">
           <div>
@@ -352,7 +453,17 @@ export default function ActivosPage() {
             </p>
             <p className="text-gray-600 text-xs mt-1">
               {activosFiltrados.length}{" "}
-              {filtroNombre ? "resultado(s)" : "miembros activos"}
+              {filtroNombre ? "resultado(s)" : "miembros"}
+              {conteos.urgente > 0 && (
+                <span className="ml-2 text-orange-400 font-semibold">
+                  · {conteos.urgente} vencen en 3 dias
+                </span>
+              )}
+              {conteos.vencido > 0 && (
+                <span className="ml-2 text-red-400 font-semibold">
+                  · {conteos.vencido} vencidos
+                </span>
+              )}
             </p>
           </div>
           <div className="flex gap-2">
@@ -378,6 +489,7 @@ export default function ActivosPage() {
           </div>
         </div>
 
+        {/* Buscador */}
         <div className="mt-4 flex gap-3 items-center">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -398,6 +510,40 @@ export default function ActivosPage() {
             </button>
           )}
         </div>
+
+        {/* Tabs */}
+        <div className="mt-4 flex gap-2 flex-wrap">
+          {TABS.map(({ key, label }) => {
+            const count = conteos[key];
+            const isActive = tabActivo === key;
+            const isAlert = key === "urgente" && count > 0;
+            const isVencido = key === "vencido" && count > 0;
+            return (
+              <button
+                key={key}
+                onClick={() => setTabActivo(key)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border ${
+                  isActive
+                    ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
+                    : isAlert
+                    ? "bg-orange-500/10 text-orange-400 border-orange-500/25 hover:bg-orange-500/20"
+                    : isVencido
+                    ? "bg-red-500/10 text-red-400 border-red-500/25 hover:bg-red-500/20"
+                    : "bg-gray-800 text-gray-400 border-gray-700 hover:text-white hover:border-gray-600"
+                }`}
+              >
+                {label}
+                <span
+                  className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                    isActive ? "bg-white/20" : "bg-white/10"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {activosFiltrados.length === 0 ? (
@@ -406,7 +552,7 @@ export default function ActivosPage() {
           <p className="text-gray-400 text-sm">
             {filtroNombre
               ? "No hay activos que coincidan"
-              : "No hay miembros activos aun"}
+              : "No hay miembros en esta categoria"}
           </p>
         </div>
       ) : (
@@ -422,6 +568,7 @@ export default function ActivosPage() {
                     "Precio",
                     "Ultimo pago",
                     "Proximo pago",
+                    "Estado",
                     "Acciones",
                   ].map((h) => (
                     <th
@@ -436,10 +583,15 @@ export default function ActivosPage() {
               <tbody className="divide-y divide-gray-800/60">
                 {activosFiltrados.map((miembro) => {
                   const isUpdating = updatingId === miembro.id;
+                  const estadoPago = getEstadoPago(miembro.proximo_pago);
+                  const config = ESTADO_CONFIG[estadoPago];
+                  const dias = diasRestantes(miembro.proximo_pago);
+                  const Icon = config.icon;
+
                   return (
                     <tr
                       key={miembro.id}
-                      className="hover:bg-gray-800/30 transition-colors"
+                      className={`transition-colors hover:bg-gray-800/30 ${config.bg}`}
                     >
                       <td className="px-4 py-3 font-medium text-white">
                         {miembro.nombre || "-"}
@@ -457,16 +609,30 @@ export default function ActivosPage() {
                           {miembro.plan || "Sin plan"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-300 font-medium">
+                      <td className="px-4 py-3 text-gray-300 font-medium tabular-nums">
                         {miembro.precio
                           ? "$" + Number(miembro.precio).toLocaleString()
                           : "-"}
                       </td>
-                      <td className="px-4 py-3 text-gray-400">
+                      <td className="px-4 py-3 text-gray-400 tabular-nums">
                         {miembro.fecha_pago || "-"}
                       </td>
-                      <td className="px-4 py-3 text-gray-400">
+                      <td className="px-4 py-3 text-gray-400 tabular-nums">
                         {miembro.proximo_pago || "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${config.badge}`}
+                        >
+                          <Icon className="w-3 h-3" />
+                          {estadoPago === "urgente" && dias !== null
+                            ? dias === 0
+                              ? "Hoy"
+                              : dias === 1
+                              ? "Manana"
+                              : `${dias} dias`
+                            : config.label}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">

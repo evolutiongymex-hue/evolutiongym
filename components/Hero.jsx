@@ -284,7 +284,7 @@ const Hero = () => {
             >
               <span className="relative z-10 flex items-center gap-2 text-base">
                 <BsCalendarCheck className="w-5 h-5" />
-                Agendar clase gratis
+                Agendar Visita
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
             </button>
