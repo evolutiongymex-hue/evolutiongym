@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   DollarSign,
@@ -15,6 +15,7 @@ import {
   Banknote,
   Clock,
   CheckCircle2,
+  Calendar,
 } from "lucide-react";
 
 const diasRestantes = (proximoPago) => {
@@ -54,10 +55,25 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color, bg }) => (
   </div>
 );
 
+const TABS = [
+  { key: "dia", label: "Hoy" },
+  { key: "semana", label: "Esta semana" },
+  { key: "mes", label: "Este mes" },
+];
+
+const PLANES_ORDER = [
+  "Mensual",
+  "Bimestral",
+  "Trimestral",
+  "Anualidad",
+  "Visita",
+];
+
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [tab, setTab] = useState("dia");
 
   const fetchData = useCallback(async () => {
     try {
@@ -77,20 +93,37 @@ export default function DashboardPage() {
         timeZone: "America/Mexico_City",
       });
 
-      const [crmRes, pagosRes, inventarioRes, ventasRes] = await Promise.all([
+      const [
+        crmRes,
+        pagosRes,
+        inventarioRes,
+        ventasDiaRes,
+        ventasSemanaRes,
+        ventasMesRes,
+      ] = await Promise.all([
         fetch("/api/sheets?sheet=CRM_Evolution_Gym"),
         fetch("/api/pagos"),
         fetch("/api/inventario"),
         fetch("/api/inventario/ventas?periodo=dia"),
+        fetch("/api/inventario/ventas?periodo=semana"),
+        fetch("/api/inventario/ventas?periodo=mes"),
       ]);
 
-      const [crmData, pagosData, inventarioData, ventasData] =
-        await Promise.all([
-          crmRes.json(),
-          pagosRes.json(),
-          inventarioRes.json(),
-          ventasRes.json(),
-        ]);
+      const [
+        crmData,
+        pagosData,
+        inventarioData,
+        ventasDiaData,
+        ventasSemanaData,
+        ventasMesData,
+      ] = await Promise.all([
+        crmRes.json(),
+        pagosRes.json(),
+        inventarioRes.json(),
+        ventasDiaRes.json(),
+        ventasSemanaRes.json(),
+        ventasMesRes.json(),
+      ]);
 
       const clientes = crmData.success ? crmData.data : [];
       const pagos = pagosData.success ? pagosData.data : [];
@@ -107,8 +140,36 @@ export default function DashboardPage() {
           c.estado !== "INACTIVO"
         );
       });
+      const visitasSemana = clientes.filter((c) => {
+        const fecha = (c.fecha_creacion || "").split("T")[0];
+        return (
+          fecha >= semanaAtrasStr &&
+          fecha <= hoy &&
+          c.estado !== "ACTIVO" &&
+          c.estado !== "INACTIVO"
+        );
+      });
+      const visitasMes = clientes.filter((c) => {
+        const fecha = (c.fecha_creacion || "").split("T")[0];
+        return (
+          fecha >= mesAtrasStr &&
+          fecha <= hoy &&
+          c.estado !== "ACTIVO" &&
+          c.estado !== "INACTIVO"
+        );
+      });
 
-      // Alertas de pago
+      // Nuevos activos por período
+      const nuevosActivosSemana = clientes.filter((c) => {
+        const fecha = (c.fecha_creacion || "").split("T")[0];
+        return fecha >= semanaAtrasStr && fecha <= hoy && c.estado === "ACTIVO";
+      });
+      const nuevosActivosMes = clientes.filter((c) => {
+        const fecha = (c.fecha_creacion || "").split("T")[0];
+        return fecha >= mesAtrasStr && fecha <= hoy && c.estado === "ACTIVO";
+      });
+
+      // Alertas
       const vencenProximo = activos.filter((c) => {
         const dias = diasRestantes(c.proximo_pago);
         return dias !== null && dias >= 0 && dias <= 3;
@@ -118,7 +179,7 @@ export default function DashboardPage() {
         return dias !== null && dias < 0;
       });
 
-      // Ingresos
+      // Pagos por período
       const pagosHoy = pagos.filter((p) => p.fecha_pago === hoy);
       const pagosSemana = pagos.filter(
         (p) => p.fecha_pago >= semanaAtrasStr && p.fecha_pago <= hoy
@@ -127,41 +188,59 @@ export default function DashboardPage() {
         (p) => p.fecha_pago >= mesAtrasStr && p.fecha_pago <= hoy
       );
 
-      const totalHoy = pagosHoy.reduce((s, p) => s + p.monto, 0);
-      const totalSemana = pagosSemana.reduce((s, p) => s + p.monto, 0);
-      const totalMes = pagosMes.reduce((s, p) => s + p.monto, 0);
+      const calcStats = (lista) => {
+        const total = lista.reduce((s, p) => s + (Number(p.monto) || 0), 0);
+        const efectivo = lista
+          .filter((p) => p.metodo_pago === "efectivo")
+          .reduce((s, p) => s + (Number(p.monto) || 0), 0);
+        const transferencia = lista
+          .filter((p) => p.metodo_pago === "transferencia")
+          .reduce((s, p) => s + (Number(p.monto) || 0), 0);
 
-      const efectivoHoy = pagosHoy
-        .filter((p) => p.metodo_pago === "efectivo")
-        .reduce((s, p) => s + p.monto, 0);
-      const transferenciaHoy = pagosHoy
-        .filter((p) => p.metodo_pago === "transferencia")
-        .reduce((s, p) => s + p.monto, 0);
+        // Por plan
+        const porPlan = {};
+        lista.forEach((p) => {
+          const plan = p.plan || "Otro";
+          const base = PLANES_ORDER.find((pl) => plan.includes(pl)) || "Otro";
+          porPlan[base] = (porPlan[base] || 0) + (Number(p.monto) || 0);
+        });
+
+        return { total, efectivo, transferencia, porPlan, count: lista.length };
+      };
 
       // Inventario
       const stockBajo = productos.filter((p) => p.stock <= p.stock_minimo);
-      const ventasDia = ventasData.success ? ventasData.totalDinero : 0;
-      const unidadesDia = ventasData.success ? ventasData.totalUnidades : 0;
-
-      // Ultimos pagos del dia
-      const ultimosPagos = pagosHoy.slice(-5).reverse();
 
       setData({
         activos: activos.length,
         inactivos: inactivos.length,
         visitasHoy: visitasHoy.length,
+        visitasSemana: visitasSemana.length,
+        visitasMes: visitasMes.length,
+        nuevosActivosSemana: nuevosActivosSemana.length,
+        nuevosActivosMes: nuevosActivosMes.length,
         vencenProximo: vencenProximo.length,
         vencidos: vencidos.length,
-        totalHoy,
-        totalSemana,
-        totalMes,
-        efectivoHoy,
-        transferenciaHoy,
+        dia: calcStats(pagosHoy),
+        semana: calcStats(pagosSemana),
+        mes: calcStats(pagosMes),
         stockBajo: stockBajo.length,
-        ventasDia,
-        unidadesDia,
-        ultimosPagos,
         productosAlerta: stockBajo.map((p) => p.nombre),
+        inventarioDia: {
+          total: ventasDiaData.success ? ventasDiaData.totalDinero : 0,
+          unidades: ventasDiaData.success ? ventasDiaData.totalUnidades : 0,
+        },
+        inventarioSemana: {
+          total: ventasSemanaData.success ? ventasSemanaData.totalDinero : 0,
+          unidades: ventasSemanaData.success
+            ? ventasSemanaData.totalUnidades
+            : 0,
+        },
+        inventarioMes: {
+          total: ventasMesData.success ? ventasMesData.totalDinero : 0,
+          unidades: ventasMesData.success ? ventasMesData.totalUnidades : 0,
+        },
+        ultimosPagos: pagosHoy.slice(-5).reverse(),
       });
     } catch {
       // silencioso
@@ -173,6 +252,32 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const stats = useMemo(() => data?.[tab], [data, tab]);
+  const visitas = useMemo(() => {
+    if (!data) return 0;
+    return tab === "dia"
+      ? data.visitasHoy
+      : tab === "semana"
+      ? data.visitasSemana
+      : data.visitasMes;
+  }, [data, tab]);
+  const nuevosActivos = useMemo(() => {
+    if (!data) return 0;
+    return tab === "dia"
+      ? "-"
+      : tab === "semana"
+      ? data.nuevosActivosSemana
+      : data.nuevosActivosMes;
+  }, [data, tab]);
+  const inventario = useMemo(() => {
+    if (!data) return { total: 0, unidades: 0 };
+    return tab === "dia"
+      ? data.inventarioDia
+      : tab === "semana"
+      ? data.inventarioSemana
+      : data.inventarioMes;
+  }, [data, tab]);
 
   if (loading) {
     return (
@@ -198,7 +303,7 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex justify-between items-start mb-8">
+      <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-2xl font-black text-white">Dashboard</h1>
           <p className="text-gray-400 text-sm mt-0.5 capitalize">
@@ -262,46 +367,51 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Ingresos */}
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6">
+        {TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all " +
+              (tab === key
+                ? "bg-primary text-white shadow-lg shadow-primary/20"
+                : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white")
+            }
+          >
+            <Calendar className="w-4 h-4" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Ingresos del período */}
       <div className="mb-3">
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
           Ingresos
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            title="Hoy"
-            value={"$" + data.totalHoy.toLocaleString()}
-            subtitle={data.ultimosPagos.length + " pagos registrados"}
+            title="Total"
+            value={"$" + stats.total.toLocaleString()}
+            subtitle={stats.count + " pagos registrados"}
             icon={DollarSign}
             color="text-primary"
             bg="bg-primary/5 border-primary/20"
           />
-          <StatCard
-            title="Esta semana"
-            value={"$" + data.totalSemana.toLocaleString()}
-            icon={TrendingUp}
-            color="text-blue-400"
-            bg="bg-blue-500/5 border-blue-500/20"
-          />
-          <StatCard
-            title="Este mes"
-            value={"$" + data.totalMes.toLocaleString()}
-            icon={TrendingUp}
-            color="text-purple-400"
-            bg="bg-purple-500/5 border-purple-500/20"
-          />
           <div className="rounded-xl border bg-gray-900/40 border-gray-800 p-5">
             <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider block mb-3">
-              Metodo hoy
+              Metodo de pago
             </span>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Banknote className="w-4 h-4 text-green-400" />
                   <span className="text-gray-400 text-sm">Efectivo</span>
                 </div>
                 <span className="text-green-400 font-bold">
-                  ${data.efectivoHoy.toLocaleString()}
+                  ${stats.efectivo.toLocaleString()}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -310,10 +420,34 @@ export default function DashboardPage() {
                   <span className="text-gray-400 text-sm">Transferencia</span>
                 </div>
                 <span className="text-blue-400 font-bold">
-                  ${data.transferenciaHoy.toLocaleString()}
+                  ${stats.transferencia.toLocaleString()}
                 </span>
               </div>
             </div>
+          </div>
+          <div className="rounded-xl border bg-gray-900/40 border-gray-800 p-5 sm:col-span-2">
+            <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider block mb-3">
+              Ingresos por plan
+            </span>
+            {Object.keys(stats.porPlan).length === 0 ? (
+              <p className="text-gray-600 text-sm">Sin pagos en este periodo</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {Object.entries(stats.porPlan)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([plan, monto]) => (
+                    <div
+                      key={plan}
+                      className="bg-gray-800/50 rounded-lg px-3 py-2"
+                    >
+                      <p className="text-gray-500 text-xs">{plan}</p>
+                      <p className="text-white font-bold text-sm tabular-nums">
+                        ${monto.toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -323,9 +457,9 @@ export default function DashboardPage() {
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
           Miembros
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            title="Activos"
+            title="Activos totales"
             value={data.activos}
             subtitle="Con membresia vigente"
             icon={Users}
@@ -333,7 +467,7 @@ export default function DashboardPage() {
             bg="bg-green-500/5 border-green-500/20"
           />
           <StatCard
-            title="Inactivos"
+            title="Inactivos totales"
             value={data.inactivos}
             subtitle="Sin membresia activa"
             icon={UserX}
@@ -341,12 +475,32 @@ export default function DashboardPage() {
             bg="bg-gray-800/40 border-gray-700"
           />
           <StatCard
-            title="Visitas hoy"
-            value={data.visitasHoy}
-            subtitle="Registros del dia"
+            title="Visitas"
+            value={visitas}
+            subtitle={
+              tab === "dia"
+                ? "Agendadas hoy"
+                : tab === "semana"
+                ? "Esta semana"
+                : "Este mes"
+            }
             icon={CheckCircle2}
             color="text-yellow-400"
             bg="bg-yellow-500/5 border-yellow-500/20"
+          />
+          <StatCard
+            title="Nuevos activos"
+            value={nuevosActivos}
+            subtitle={
+              tab === "dia"
+                ? "Ver semana o mes"
+                : tab === "semana"
+                ? "Esta semana"
+                : "Este mes"
+            }
+            icon={TrendingUp}
+            color="text-blue-400"
+            bg="bg-blue-500/5 border-blue-500/20"
           />
         </div>
       </div>
@@ -354,13 +508,20 @@ export default function DashboardPage() {
       {/* Inventario */}
       <div className="mb-3 mt-6">
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-          Inventario hoy
+          Inventario
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <StatCard
-            title="Ventas del dia"
-            value={"$" + data.ventasDia.toLocaleString()}
-            subtitle={data.unidadesDia + " unidades vendidas"}
+            title={
+              "Ventas " +
+              (tab === "dia"
+                ? "del dia"
+                : tab === "semana"
+                ? "de la semana"
+                : "del mes")
+            }
+            value={"$" + inventario.total.toLocaleString()}
+            subtitle={inventario.unidades + " unidades vendidas"}
             icon={Package}
             color="text-blue-400"
             bg="bg-blue-500/5 border-blue-500/20"
@@ -390,7 +551,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Ultimos pagos del dia */}
+      {/* Ultimos pagos */}
       {data.ultimosPagos.length > 0 && (
         <div className="mt-6">
           <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
@@ -423,7 +584,7 @@ export default function DashboardPage() {
                       {pago.plan || "-"}
                     </td>
                     <td className="px-4 py-3 text-white font-semibold tabular-nums">
-                      ${pago.monto.toLocaleString()}
+                      ${(Number(pago.monto) || 0).toLocaleString()}
                     </td>
                     <td className="px-4 py-3">
                       <span
