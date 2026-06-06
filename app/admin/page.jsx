@@ -29,7 +29,7 @@ export default function AdminLogin() {
       const data = await response.json();
 
       if (response.ok) {
-        router.push("/admin/leads");
+        router.push("/admin/dashboard");
         router.refresh();
       } else {
         setError(data.error || "Contrasena incorrecta");
@@ -44,7 +44,6 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4">
-      {/* Glow de fondo */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
       <motion.div
@@ -54,7 +53,6 @@ export default function AdminLogin() {
         className="relative w-full max-w-sm"
       >
         <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
-          {/* Header del card */}
           <div className="px-8 pt-8 pb-6 border-b border-gray-800 text-center">
             <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
               <FiLock className="w-5 h-5 text-primary" />
@@ -67,7 +65,6 @@ export default function AdminLogin() {
             </p>
           </div>
 
-          {/* Formulario */}
           <div className="px-8 py-6">
             {error && (
               <motion.div
@@ -106,9 +103,6 @@ export default function AdminLogin() {
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                    aria-label={
-                      showPassword ? "Ocultar contrasena" : "Mostrar contrasena"
-                    }
                   >
                     {showPassword ? (
                       <FiEyeOff className="w-4 h-4" />
@@ -160,7 +154,6 @@ export default function AdminLogin() {
             </form>
           </div>
 
-          {/* Footer del card */}
           <div className="px-8 pb-6 text-center">
             <p className="text-gray-600 text-xs">
               Area restringida — Solo personal autorizado

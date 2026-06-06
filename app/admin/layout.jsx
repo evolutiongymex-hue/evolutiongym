@@ -12,9 +12,16 @@ import {
   Package,
   Menu,
   X,
+  LayoutDashboard,
 } from "lucide-react";
 
 const MENU_ITEMS = [
+  {
+    name: "Dashboard",
+    href: "/admin/dashboard",
+    icon: LayoutDashboard,
+    color: "text-primary",
+  },
   {
     name: "Productos",
     href: "/admin/inventario",
