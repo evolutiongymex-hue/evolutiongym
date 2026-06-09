@@ -29,19 +29,36 @@ const PLANES = {
     nombre: "Promo: 3 meses por $800",
     esPromocion: true,
   },
-  Promo2x1: {
-    precio: 350,
-    meses: 2,
-    nombre: "Promo: 2x1 Mensual",
+  Promo4x1000: {
+    precio: 1000,
+    meses: 4,
+    nombre: "Promo: 4 meses x 1000",
     esPromocion: true,
   },
-  Promo5mas1: {
+  Semestre: {
     precio: 1750,
     meses: 6,
-    nombre: "Promo: 5+1 (paga 5, tiene 6)",
+    nombre: "Promo: Semestre",
     esPromocion: true,
   },
 };
+
+const OPCIONES_PLANES = (
+  <>
+    <optgroup label="Planes">
+      <option value="Visita">Visita — $50 (1 día)</option>
+      <option value="Mensual">Mensual — $350 (1 mes)</option>
+      <option value="Bimestral">Bimestral — $600 (2 meses)</option>
+      <option value="Trimestral">Trimestral — $800 (3 meses)</option>
+      <option value="Anualidad">Anualidad — $3,500 (12 meses)</option>
+    </optgroup>
+    <optgroup label="Promociones">
+      <option value="Promo3x1">3 meses por $800</option>
+      <option value="Promo4x1000">4 meses por $1,000</option>
+      <option value="Semestre">Semestre — $1,750 (6 meses)</option>
+    </optgroup>
+  </>
+);
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -57,13 +74,11 @@ const calcularProximoPago = (fechaPago, mesesIncluidos) => {
   ].join("-");
 };
 
-// Calcula dias restantes desde hoy hasta proximo_pago
 const diasRestantes = (proximoPago) => {
   if (!proximoPago) return null;
   try {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    // Soporta YYYY-MM-DD y D/M/YYYY
     let fecha;
     if (proximoPago.includes("-")) {
       fecha = new Date(proximoPago + "T00:00:00");
@@ -71,8 +86,7 @@ const diasRestantes = (proximoPago) => {
       const [d, m, y] = proximoPago.split("/").map(Number);
       fecha = new Date(y, m - 1, d);
     }
-    const diff = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
-    return diff;
+    return Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
   } catch {
     return null;
   }
@@ -92,7 +106,6 @@ const ESTADO_CONFIG = {
     label: "Vencido",
     color: "text-red-400",
     bg: "bg-red-500/5",
-    border: "border-red-500/20",
     badge: "bg-red-500/15 text-red-400 border-red-500/25",
     icon: AlertTriangle,
   },
@@ -100,7 +113,6 @@ const ESTADO_CONFIG = {
     label: "Vence pronto",
     color: "text-orange-400",
     bg: "bg-orange-500/5",
-    border: "border-orange-500/20",
     badge: "bg-orange-500/15 text-orange-400 border-orange-500/25",
     icon: AlertTriangle,
   },
@@ -108,7 +120,6 @@ const ESTADO_CONFIG = {
     label: "Por vencer",
     color: "text-yellow-400",
     bg: "bg-yellow-500/5",
-    border: "border-yellow-500/20",
     badge: "bg-yellow-500/15 text-yellow-400 border-yellow-500/25",
     icon: Clock,
   },
@@ -116,7 +127,6 @@ const ESTADO_CONFIG = {
     label: "Al corriente",
     color: "text-green-400",
     bg: "",
-    border: "",
     badge: "bg-green-500/15 text-green-400 border-green-500/25",
     icon: CheckCircle2,
   },
@@ -124,7 +134,6 @@ const ESTADO_CONFIG = {
     label: "Sin fecha",
     color: "text-gray-500",
     bg: "",
-    border: "",
     badge: "bg-gray-700/50 text-gray-500 border-gray-700",
     icon: Clock,
   },
@@ -198,7 +207,6 @@ export default function ActivosPage() {
     fetchActivos();
   }, [fetchActivos]);
 
-  // Conteos por tab para los badges
   const conteos = useMemo(() => {
     const base = activos.filter(
       (m) =>
@@ -440,7 +448,6 @@ export default function ActivosPage() {
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-6">
         <div className="flex justify-between items-start">
           <div>
@@ -471,8 +478,7 @@ export default function ActivosPage() {
               onClick={fetchActivos}
               className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm text-gray-300 transition-colors"
             >
-              <RefreshCw className="w-4 h-4" />
-              Actualizar
+              <RefreshCw className="w-4 h-4" /> Actualizar
             </button>
             <button
               onClick={() => {
@@ -483,13 +489,11 @@ export default function ActivosPage() {
               }}
               className="flex items-center gap-2 px-4 py-2 bg-primary hover:brightness-110 rounded-xl text-sm text-white font-semibold transition-all"
             >
-              <UserPlus className="w-4 h-4" />
-              Registrar cliente
+              <UserPlus className="w-4 h-4" /> Registrar cliente
             </button>
           </div>
         </div>
 
-        {/* Buscador */}
         <div className="mt-4 flex gap-3 items-center">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -511,7 +515,6 @@ export default function ActivosPage() {
           )}
         </div>
 
-        {/* Tabs */}
         <div className="mt-4 flex gap-2 flex-wrap">
           {TABS.map(({ key, label }) => {
             const count = conteos[key];
@@ -587,7 +590,6 @@ export default function ActivosPage() {
                   const config = ESTADO_CONFIG[estadoPago];
                   const dias = diasRestantes(miembro.proximo_pago);
                   const Icon = config.icon;
-
                   return (
                     <tr
                       key={miembro.id}
@@ -722,26 +724,7 @@ export default function ActivosPage() {
                     }
                     className={inputClass}
                   >
-                    <optgroup label="Planes">
-                      <option value="Visita">Visita - $50 (1 dia)</option>
-                      <option value="Mensual">Mensual - $350 (1 mes)</option>
-                      <option value="Bimestral">
-                        Bimestral - $600 (2 meses)
-                      </option>
-                      <option value="Trimestral">
-                        Trimestral - $800 (3 meses)
-                      </option>
-                      <option value="Anualidad">
-                        Anualidad - $3,500 (12 meses)
-                      </option>
-                    </optgroup>
-                    <optgroup label="Promociones">
-                      <option value="Promo3x1">3 meses por $800</option>
-                      <option value="Promo2x1">
-                        2x1 Mensual - $350 por 2 meses
-                      </option>
-                      <option value="Promo5mas1">5+1 - paga 5, tiene 6</option>
-                    </optgroup>
+                    {OPCIONES_PLANES}
                   </select>
                 </div>
                 <div>
@@ -779,7 +762,7 @@ export default function ActivosPage() {
                   <span className="text-white font-semibold">
                     ${PLANES[paymentData.planKey]?.precio.toLocaleString()}
                   </span>
-                  {" - "}Proximo pago:{" "}
+                  {" — "}Proximo pago:{" "}
                   <span className="text-white">
                     {calcularProximoPago(
                       paymentData.fecha_pago,
@@ -906,28 +889,7 @@ export default function ActivosPage() {
                       }
                       className={inputClass}
                     >
-                      <optgroup label="Planes">
-                        <option value="Visita">Visita - $50 (1 dia)</option>
-                        <option value="Mensual">Mensual - $350 (1 mes)</option>
-                        <option value="Bimestral">
-                          Bimestral - $600 (2 meses)
-                        </option>
-                        <option value="Trimestral">
-                          Trimestral - $800 (3 meses)
-                        </option>
-                        <option value="Anualidad">
-                          Anualidad - $3,500 (12 meses)
-                        </option>
-                      </optgroup>
-                      <optgroup label="Promociones">
-                        <option value="Promo3x1">3 meses por $800</option>
-                        <option value="Promo2x1">
-                          2x1 Mensual - $350 por 2 meses
-                        </option>
-                        <option value="Promo5mas1">
-                          5+1 - paga 5, tiene 6
-                        </option>
-                      </optgroup>
+                      {OPCIONES_PLANES}
                     </select>
                   </div>
                   <div>
@@ -965,7 +927,7 @@ export default function ActivosPage() {
                     <span className="text-white font-semibold">
                       ${PLANES[newClient.planKey]?.precio.toLocaleString()}
                     </span>
-                    {" - "}Proximo pago:{" "}
+                    {" — "}Proximo pago:{" "}
                     <span className="text-white">
                       {calcularProximoPago(
                         newClient.fecha_pago,
