@@ -23,7 +23,8 @@ export async function GET() {
       nombre: row[1] ?? "",
       stock: parseInt(row[2]) || 0,
       precio_venta: parseInt(row[3]) || 0,
-      stock_minimo: parseInt(row[4]) || 5,
+      stock_minimo:
+        row[4] !== undefined && row[4] !== "" ? parseInt(row[4]) : 0,
       ultima_actualizacion: row[5] ?? "",
     }));
 
@@ -65,7 +66,14 @@ export async function POST(request) {
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [
-          [nuevoId, nombre, stock ?? 0, precio_venta, stock_minimo ?? 5, hoy],
+          [
+            nuevoId,
+            nombre,
+            stock ?? 0,
+            precio_venta,
+            stock_minimo !== undefined ? stock_minimo : 0,
+            hoy,
+          ],
         ],
       },
     });
@@ -118,7 +126,12 @@ export async function PUT(request) {
       const nuevoNombre = nombre ?? producto[1];
       const stockActual = parseInt(producto[2]) || 0;
       const nuevoPrecio = precio_venta ?? (parseInt(producto[3]) || 0);
-      const nuevoStockMin = stock_minimo ?? (parseInt(producto[4]) || 5);
+      const nuevoStockMin =
+        stock_minimo !== undefined
+          ? parseInt(stock_minimo)
+          : producto[4] !== undefined && producto[4] !== ""
+          ? parseInt(producto[4])
+          : 0;
 
       await sheets.spreadsheets.values.update({
         spreadsheetId: SHEET_ID,
