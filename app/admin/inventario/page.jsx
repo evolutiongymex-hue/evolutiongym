@@ -80,10 +80,8 @@ export default function InventarioPage() {
         productosRes.json(),
         ventasRes.json(),
       ]);
-
       if (productosData.success) setProductos(productosData.data);
       else setError(productosData.error || "Error al cargar productos");
-
       if (ventasData.success) {
         setVentas({
           totalUnidades: ventasData.totalUnidades || 0,
@@ -101,6 +99,15 @@ export default function InventarioPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Mapa de piezas vendidas por producto_id en el período
+  const ventasPorProducto = useMemo(() => {
+    const mapa = {};
+    ventas.detalle.forEach((v) => {
+      mapa[v.producto_id] = (mapa[v.producto_id] || 0) + v.cantidad;
+    });
+    return mapa;
+  }, [ventas.detalle]);
 
   const productosFiltrados = useMemo(() => {
     if (!busqueda.trim()) return productos;
@@ -171,7 +178,6 @@ export default function InventarioPage() {
       );
       return;
     }
-
     setIsSubmitting(true);
     try {
       const total = cantidad * selectedProducto.precio_venta;
@@ -300,13 +306,21 @@ export default function InventarioPage() {
   }, [editarData, selectedProducto, fetchData, cerrarModal]);
 
   const exportarCSV = useCallback(() => {
-    const headers = ["ID", "Nombre", "Stock", "Precio", "Stock Minimo"];
+    const headers = [
+      "ID",
+      "Nombre",
+      "Stock",
+      "Precio",
+      "Stock Minimo",
+      "Vendido " + PERIODO_LABEL[filtro],
+    ];
     const filas = productos.map((p) => [
       p.id,
       p.nombre,
       p.stock,
       p.precio_venta,
       p.stock_minimo,
+      ventasPorProducto[p.id] || 0,
     ]);
     const csvContent = [headers, ...filas]
       .map((row) => row.map(escapeCsvField).join(","))
@@ -321,7 +335,7 @@ export default function InventarioPage() {
       "inventario_" + new Date().toISOString().split("T")[0] + ".csv";
     a.click();
     URL.revokeObjectURL(url);
-  }, [productos]);
+  }, [productos, ventasPorProducto, filtro]);
 
   const productosConAlerta = useMemo(
     () => productos.filter((p) => p.stock <= p.stock_minimo).length,
@@ -392,7 +406,7 @@ export default function InventarioPage() {
         </div>
       </div>
 
-      {/* Tabs periodo */}
+      {/* Tabs */}
       <div className="flex gap-2 mb-6">
         {FILTROS.map(({ key, label }) => (
           <button
@@ -443,7 +457,6 @@ export default function InventarioPage() {
           <h2 className="text-white font-semibold text-sm flex-shrink-0">
             Productos
           </h2>
-          {/* Buscador */}
           <div className="relative max-w-xs w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
@@ -467,23 +480,36 @@ export default function InventarioPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-800/40">
-                {["Nombre", "Stock", "Precio", "Stock minimo", "Acciones"].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                    >
-                      {h}
-                    </th>
-                  )
-                )}
+                {[
+                  "Nombre",
+                  "Stock",
+                  "Vendido",
+                  "Precio",
+                  "Stock minimo",
+                  "Acciones",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+              <tr className="border-b border-gray-800/40 bg-gray-800/20">
+                <td
+                  colSpan={6}
+                  className="px-4 py-1.5 text-[10px] text-gray-600 italic"
+                >
+                  Vendido = piezas vendidas {PERIODO_LABEL[filtro]}
+                </td>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/60">
               {productosFiltrados.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="text-center py-10 text-gray-500 text-sm"
                   >
                     {busqueda
@@ -494,6 +520,7 @@ export default function InventarioPage() {
               ) : (
                 productosFiltrados.map((producto) => {
                   const isLow = producto.stock <= producto.stock_minimo;
+                  const vendido = ventasPorProducto[producto.id] || 0;
                   return (
                     <tr
                       key={producto.id}
@@ -526,6 +553,15 @@ export default function InventarioPage() {
                             <Loader2 className="w-3 h-3 animate-spin text-gray-500" />
                           )}
                         </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {vendido > 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-semibold tabular-nums">
+                            <ShoppingCart className="w-3 h-3" /> {vendido}
+                          </span>
+                        ) : (
+                          <span className="text-gray-600 text-xs">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-300 tabular-nums">
                         ${producto.precio_venta.toLocaleString()}
@@ -666,7 +702,6 @@ export default function InventarioPage() {
                 </div>
               )}
 
-              {/* Nuevo producto */}
               {activeModal === "producto" && (
                 <div className="space-y-4">
                   {productoError && (
@@ -755,7 +790,6 @@ export default function InventarioPage() {
                 </div>
               )}
 
-              {/* Editar producto */}
               {activeModal === "editar" && selectedProducto && (
                 <div className="space-y-4">
                   {productoError && (
@@ -829,7 +863,6 @@ export default function InventarioPage() {
                 </div>
               )}
 
-              {/* Venta */}
               {activeModal === "venta" && selectedProducto && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -894,7 +927,6 @@ export default function InventarioPage() {
                 </div>
               )}
 
-              {/* Stock */}
               {activeModal === "stock" && selectedProducto && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3 text-sm">
