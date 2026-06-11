@@ -14,7 +14,7 @@ export async function GET(request) {
     const [ventasRes, productosRes] = await Promise.all([
       sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: "VENTAS_INVENTARIO!A:E",
+        range: "VENTAS_INVENTARIO!A:F",
       }),
       sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
@@ -41,7 +41,6 @@ export async function GET(request) {
 
     const hoy = new Date();
     let fechaInicio;
-
     if (periodo === "dia") {
       fechaInicio = hoy.toISOString().split("T")[0];
     } else if (periodo === "semana") {
@@ -71,6 +70,7 @@ export async function GET(request) {
       cantidad: parseInt(row[2]) || 0,
       total: parseInt(row[3]) || 0,
       fecha: row[4],
+      metodo_pago: row[5] ?? "efectivo",
     }));
 
     return NextResponse.json({
@@ -90,7 +90,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { producto_id, cantidad, total } = body;
+    const { producto_id, cantidad, total, metodo_pago } = body;
 
     if (!producto_id || !cantidad || !total) {
       return NextResponse.json(
@@ -101,7 +101,6 @@ export async function POST(request) {
 
     const auth = await getAuthClient();
     const sheets = getSheetsClient(auth);
-
     const fecha = new Date().toISOString().split("T")[0];
 
     const response = await sheets.spreadsheets.values.get({
@@ -113,10 +112,19 @@ export async function POST(request) {
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
-      range: "VENTAS_INVENTARIO!A:E",
+      range: "VENTAS_INVENTARIO!A:F",
       valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [[nuevoId, producto_id, cantidad, total, fecha]],
+        values: [
+          [
+            nuevoId,
+            producto_id,
+            cantidad,
+            total,
+            fecha,
+            metodo_pago ?? "efectivo",
+          ],
+        ],
       },
     });
 

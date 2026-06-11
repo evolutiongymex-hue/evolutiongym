@@ -62,9 +62,9 @@ const OPCIONES_PLANES = (
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-const calcularProximoPago = (fechaPago, mesesIncluidos) => {
-  if (!fechaPago) return "";
-  const [anio, mes, dia] = fechaPago.split("-").map(Number);
+const calcularProximoPago = (fechaInicio, mesesIncluidos) => {
+  if (!fechaInicio) return "";
+  const [anio, mes, dia] = fechaInicio.split("-").map(Number);
   const fecha = new Date(anio, mes - 1, dia);
   fecha.setMonth(fecha.getMonth() + mesesIncluidos);
   return [
@@ -152,16 +152,22 @@ const inputClass =
 const labelClass =
   "block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5";
 const TODAY = new Date().toISOString().split("T")[0];
+
 const PAYMENT_DEFAULT = {
   fecha_pago: TODAY,
+  fecha_inicio: TODAY,
   planKey: "Mensual",
   metodo_pago: "transferencia",
+  parcial: false,
+  monto_parcial: "",
 };
+
 const REGISTER_DEFAULT = {
   nombre: "",
   telefono: "",
   planKey: "Mensual",
   fecha_pago: TODAY,
+  fecha_inicio: TODAY,
   metodo_pago: "transferencia",
 };
 
@@ -254,8 +260,39 @@ export default function ActivosPage() {
       setPaymentStatus({ type: "error", text: "Selecciona una fecha de pago" });
       return;
     }
+    if (!paymentData.fecha_inicio) {
+      setPaymentStatus({
+        type: "error",
+        text: "Selecciona la fecha de inicio del plan",
+      });
+      return;
+    }
+
     const plan = PLANES[paymentData.planKey];
-    const proximoPago = calcularProximoPago(paymentData.fecha_pago, plan.meses);
+    const montoPagado = paymentData.parcial
+      ? parseFloat(paymentData.monto_parcial)
+      : plan.precio;
+
+    if (paymentData.parcial && (!montoPagado || montoPagado <= 0)) {
+      setPaymentStatus({ type: "error", text: "Ingresa un monto valido" });
+      return;
+    }
+    if (paymentData.parcial && montoPagado >= plan.precio) {
+      setPaymentStatus({
+        type: "error",
+        text:
+          "El monto parcial debe ser menor al precio del plan ($" +
+          plan.precio +
+          ")",
+      });
+      return;
+    }
+
+    // proximo_pago se calcula desde fecha_inicio, no desde fecha_pago
+    const proximoPago = calcularProximoPago(
+      paymentData.fecha_inicio,
+      plan.meses
+    );
     setIsSubmitting(true);
     setPaymentStatus(null);
 
@@ -267,7 +304,7 @@ export default function ActivosPage() {
           cliente_id: selectedMember.id,
           nombre: selectedMember.nombre,
           fecha_pago: paymentData.fecha_pago,
-          monto: plan.precio,
+          monto: montoPagado,
           metodo_pago: paymentData.metodo_pago,
           plan: plan.nombre,
           meses: plan.meses,
@@ -279,7 +316,7 @@ export default function ActivosPage() {
       const pagoData = await pagoRes.json();
       const reciboUrl = APP_URL + "/recibo/" + pagoData.id;
 
-      await Promise.all([
+      const requests = [
         fetch("/api/pagos/" + pagoData.id + "/recibo", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -300,12 +337,40 @@ export default function ActivosPage() {
             meses_incluidos: plan.meses,
           }),
         }),
-      ]);
+      ];
 
-      setPaymentStatus({
-        type: "success",
-        text: "Pago registrado. Recibo: " + reciboUrl,
-      });
+      if (paymentData.parcial) {
+        requests.push(
+          fetch("/api/deudas", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              cliente_id: selectedMember.id,
+              nombre: selectedMember.nombre,
+              tipo: "membresia",
+              concepto:
+                plan.nombre +
+                " — " +
+                new Date(paymentData.fecha_inicio).toLocaleDateString("es-MX", {
+                  month: "long",
+                  year: "numeric",
+                }),
+              monto_total: plan.precio,
+              monto_pagado: montoPagado,
+            }),
+          })
+        );
+      }
+
+      await Promise.all(requests);
+
+      const msg = paymentData.parcial
+        ? `Pago parcial registrado ($${montoPagado.toLocaleString()} de $${plan.precio.toLocaleString()}). Debe: $${(
+            plan.precio - montoPagado
+          ).toLocaleString()}`
+        : "Pago registrado. Recibo: " + reciboUrl;
+
+      setPaymentStatus({ type: "success", text: msg });
       await fetchActivos();
     } catch {
       setPaymentStatus({
@@ -332,9 +397,13 @@ export default function ActivosPage() {
       setRegisterError("La fecha de pago es obligatoria");
       return;
     }
+    if (!newClient.fecha_inicio) {
+      setRegisterError("La fecha de inicio del plan es obligatoria");
+      return;
+    }
 
     const plan = PLANES[newClient.planKey];
-    const proximoPago = calcularProximoPago(newClient.fecha_pago, plan.meses);
+    const proximoPago = calcularProximoPago(newClient.fecha_inicio, plan.meses);
     const id =
       Date.now().toString() + "-" + Math.random().toString(36).substring(2, 8);
     setIsRegistering(true);
@@ -681,7 +750,7 @@ export default function ActivosPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="bg-gray-900 rounded-2xl max-w-md w-full p-6 border border-gray-800"
+              className="bg-gray-900 rounded-2xl max-w-md w-full p-6 border border-gray-800 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-5">
@@ -743,33 +812,124 @@ export default function ActivosPage() {
                     <option value="transferencia">Transferencia</option>
                   </select>
                 </div>
-                <div>
-                  <label className={labelClass}>Fecha de pago</label>
-                  <input
-                    type="date"
-                    value={paymentData.fecha_pago}
-                    onChange={(e) =>
+
+                {/* Dos fechas */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>Fecha de pago</label>
+                    <input
+                      type="date"
+                      value={paymentData.fecha_pago}
+                      onChange={(e) =>
+                        setPaymentData((p) => ({
+                          ...p,
+                          fecha_pago: e.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                    />
+                    <p className="text-gray-600 text-[10px] mt-1">
+                      Cuando pagó en caja
+                    </p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Inicio del plan</label>
+                    <input
+                      type="date"
+                      value={paymentData.fecha_inicio}
+                      onChange={(e) =>
+                        setPaymentData((p) => ({
+                          ...p,
+                          fecha_inicio: e.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                    />
+                    <p className="text-gray-600 text-[10px] mt-1">
+                      Desde cuando cuenta
+                    </p>
+                  </div>
+                </div>
+
+                {/* Toggle pago parcial */}
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-800/50 rounded-xl">
+                  <div>
+                    <p className="text-white text-sm font-medium">
+                      Pago parcial
+                    </p>
+                    <p className="text-gray-500 text-xs">
+                      El cliente debe parte del pago
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
                       setPaymentData((p) => ({
                         ...p,
-                        fecha_pago: e.target.value,
+                        parcial: !p.parcial,
+                        monto_parcial: "",
                       }))
                     }
-                    className={inputClass}
-                  />
+                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                      paymentData.parcial ? "bg-primary" : "bg-gray-700"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        paymentData.parcial ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
                 </div>
+
+                {paymentData.parcial && (
+                  <div>
+                    <label className={labelClass}>Monto que paga ahora *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max={PLANES[paymentData.planKey]?.precio - 1}
+                      value={paymentData.monto_parcial}
+                      onChange={(e) =>
+                        setPaymentData((p) => ({
+                          ...p,
+                          monto_parcial: e.target.value,
+                        }))
+                      }
+                      className={inputClass}
+                      placeholder={
+                        "Max: $" +
+                        (
+                          PLANES[paymentData.planKey]?.precio - 1
+                        ).toLocaleString()
+                      }
+                    />
+                    {paymentData.monto_parcial && (
+                      <p className="text-orange-400 text-xs mt-1.5">
+                        Queda debiendo: $
+                        {(
+                          PLANES[paymentData.planKey]?.precio -
+                          parseFloat(paymentData.monto_parcial || 0)
+                        ).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="pt-1 text-xs text-gray-500">
-                  Precio:{" "}
+                  Precio plan:{" "}
                   <span className="text-white font-semibold">
                     ${PLANES[paymentData.planKey]?.precio.toLocaleString()}
                   </span>
                   {" — "}Proximo pago:{" "}
-                  <span className="text-white">
+                  <span className="text-primary font-semibold">
                     {calcularProximoPago(
-                      paymentData.fecha_pago,
+                      paymentData.fecha_inicio,
                       PLANES[paymentData.planKey]?.meses
                     )}
                   </span>
                 </div>
+
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={registrarPago}
@@ -805,7 +965,7 @@ export default function ActivosPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="bg-gray-900 rounded-2xl max-w-md w-full p-6 border border-gray-800"
+              className="bg-gray-900 rounded-2xl max-w-md w-full p-6 border border-gray-800 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-5">
@@ -908,29 +1068,54 @@ export default function ActivosPage() {
                       <option value="transferencia">Transferencia</option>
                     </select>
                   </div>
-                  <div>
-                    <label className={labelClass}>Fecha de pago *</label>
-                    <input
-                      type="date"
-                      value={newClient.fecha_pago}
-                      onChange={(e) =>
-                        setNewClient((p) => ({
-                          ...p,
-                          fecha_pago: e.target.value,
-                        }))
-                      }
-                      className={inputClass}
-                    />
+
+                  {/* Dos fechas en registro */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>Fecha de pago *</label>
+                      <input
+                        type="date"
+                        value={newClient.fecha_pago}
+                        onChange={(e) =>
+                          setNewClient((p) => ({
+                            ...p,
+                            fecha_pago: e.target.value,
+                          }))
+                        }
+                        className={inputClass}
+                      />
+                      <p className="text-gray-600 text-[10px] mt-1">
+                        Cuando pagó en caja
+                      </p>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Inicio del plan *</label>
+                      <input
+                        type="date"
+                        value={newClient.fecha_inicio}
+                        onChange={(e) =>
+                          setNewClient((p) => ({
+                            ...p,
+                            fecha_inicio: e.target.value,
+                          }))
+                        }
+                        className={inputClass}
+                      />
+                      <p className="text-gray-600 text-[10px] mt-1">
+                        Desde cuando cuenta
+                      </p>
+                    </div>
                   </div>
+
                   <div className="pt-1 text-xs text-gray-500">
                     Precio:{" "}
                     <span className="text-white font-semibold">
                       ${PLANES[newClient.planKey]?.precio.toLocaleString()}
                     </span>
                     {" — "}Proximo pago:{" "}
-                    <span className="text-white">
+                    <span className="text-primary font-semibold">
                       {calcularProximoPago(
-                        newClient.fecha_pago,
+                        newClient.fecha_inicio,
                         PLANES[newClient.planKey]?.meses
                       )}
                     </span>

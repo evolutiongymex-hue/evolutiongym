@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   LayoutDashboard,
+  TrendingDown,
 } from "lucide-react";
 
 const MENU_ITEMS = [
@@ -46,6 +47,12 @@ const MENU_ITEMS = [
     href: "/admin/inactivos",
     icon: UserX,
     color: "text-gray-400",
+  },
+  {
+    name: "Deudas",
+    href: "/admin/deudas",
+    icon: TrendingDown,
+    color: "text-red-400",
   },
 ];
 

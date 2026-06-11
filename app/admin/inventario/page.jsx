@@ -15,6 +15,13 @@ import {
   AlertTriangle,
   Search,
   Pencil,
+  Wallet,
+  TrendingDown,
+  TrendingUp,
+  PlusCircle,
+  MinusCircle,
+  User,
+  Users,
 } from "lucide-react";
 
 const FILTROS = [
@@ -47,6 +54,7 @@ const escapeCsvField = (value) => {
 
 export default function InventarioPage() {
   const [productos, setProductos] = useState([]);
+  const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState(null);
@@ -57,10 +65,19 @@ export default function InventarioPage() {
   });
   const [filtro, setFiltro] = useState("dia");
   const [busqueda, setBusqueda] = useState("");
+  const [cajaProductos, setCajaProductos] = useState(null);
 
   const [activeModal, setActiveModal] = useState(null);
   const [selectedProducto, setSelectedProducto] = useState(null);
   const [cantidad, setCantidad] = useState(1);
+  const [metodoPagoVenta, setMetodoPagoVenta] = useState("efectivo");
+  const [parcialVenta, setParcialVenta] = useState(false);
+  const [montoParcialVenta, setMontoParcialVenta] = useState("");
+  // Cliente para deuda
+  const [clienteEsMiembro, setClienteEsMiembro] = useState(null); // null = no elegido, true/false
+  const [busquedaCliente, setBusquedaCliente] = useState("");
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null); // miembro del CRM
+  const [nombreClienteLibre, setNombreClienteLibre] = useState("");
   const [cantidadError, setCantidadError] = useState("");
   const [nuevoProducto, setNuevoProducto] = useState(NUEVO_PRODUCTO_DEFAULT);
   const [editarData, setEditarData] = useState(EDITAR_DEFAULT);
@@ -68,17 +85,29 @@ export default function InventarioPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState("");
 
+  const [cajaModal, setCajaModal] = useState(null);
+  const [cajaModalData, setCajaModalData] = useState({
+    concepto: "",
+    monto: "",
+  });
+  const [cajaModalError, setCajaModalError] = useState("");
+  const [cajaSubmitting, setCajaSubmitting] = useState(false);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-      const [productosRes, ventasRes] = await Promise.all([
+      const [productosRes, ventasRes, cajaRes, crmRes] = await Promise.all([
         fetch("/api/inventario"),
         fetch("/api/inventario/ventas?periodo=" + filtro),
+        fetch("/api/caja/productos"),
+        fetch("/api/sheets?sheet=CRM_Evolution_Gym"),
       ]);
-      const [productosData, ventasData] = await Promise.all([
+      const [productosData, ventasData, cajaData, crmData] = await Promise.all([
         productosRes.json(),
         ventasRes.json(),
+        cajaRes.json(),
+        crmRes.json(),
       ]);
       if (productosData.success) setProductos(productosData.data);
       else setError(productosData.error || "Error al cargar productos");
@@ -89,6 +118,9 @@ export default function InventarioPage() {
           detalle: ventasData.detalle || [],
         });
       }
+      if (cajaData.success) setCajaProductos(cajaData);
+      if (crmData.success)
+        setClientes(crmData.data.filter((c) => c.estado === "ACTIVO"));
     } catch {
       setError("Error de conexion con el servidor");
     } finally {
@@ -100,7 +132,15 @@ export default function InventarioPage() {
     fetchData();
   }, [fetchData]);
 
-  // Mapa de piezas vendidas por producto_id en el período
+  const clientesFiltrados = useMemo(() => {
+    if (!busquedaCliente.trim()) return [];
+    return clientes
+      .filter((c) =>
+        c.nombre?.toLowerCase().includes(busquedaCliente.toLowerCase())
+      )
+      .slice(0, 5);
+  }, [clientes, busquedaCliente]);
+
   const ventasPorProducto = useMemo(() => {
     const mapa = {};
     ventas.detalle.forEach((v) => {
@@ -116,9 +156,20 @@ export default function InventarioPage() {
     );
   }, [productos, busqueda]);
 
+  const resetClienteState = () => {
+    setClienteEsMiembro(null);
+    setBusquedaCliente("");
+    setClienteSeleccionado(null);
+    setNombreClienteLibre("");
+  };
+
   const abrirModal = useCallback((tipo, producto = null) => {
     setSelectedProducto(producto);
     setCantidad(1);
+    setMetodoPagoVenta("efectivo");
+    setParcialVenta(false);
+    setMontoParcialVenta("");
+    resetClienteState();
     setCantidadError("");
     setProductoError("");
     setActionSuccess("");
@@ -136,6 +187,10 @@ export default function InventarioPage() {
     setActiveModal(null);
     setSelectedProducto(null);
     setCantidad(1);
+    setMetodoPagoVenta("efectivo");
+    setParcialVenta(false);
+    setMontoParcialVenta("");
+    resetClienteState();
     setCantidadError("");
     setProductoError("");
     setActionSuccess("");
@@ -178,16 +233,47 @@ export default function InventarioPage() {
       );
       return;
     }
+
+    const total = cantidad * selectedProducto.precio_venta;
+    const montoRecibido = parcialVenta ? parseFloat(montoParcialVenta) : total;
+
+    if (parcialVenta) {
+      if (!montoRecibido || montoRecibido <= 0) {
+        setCantidadError("Ingresa un monto valido");
+        return;
+      }
+      if (montoRecibido >= total) {
+        setCantidadError(
+          "El anticipo debe ser menor al total ($" +
+            total.toLocaleString() +
+            ")"
+        );
+        return;
+      }
+      if (clienteEsMiembro === null) {
+        setCantidadError("Indica si el cliente es miembro o no");
+        return;
+      }
+      if (clienteEsMiembro && !clienteSeleccionado) {
+        setCantidadError("Selecciona el miembro de la lista");
+        return;
+      }
+      if (!clienteEsMiembro && !nombreClienteLibre.trim()) {
+        setCantidadError("Ingresa el nombre del cliente");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
-      const total = cantidad * selectedProducto.precio_venta;
       const ventaRes = await fetch("/api/inventario/ventas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           producto_id: selectedProducto.id,
           cantidad,
-          total,
+          total: montoRecibido,
+          metodo_pago: metodoPagoVenta,
         }),
       });
       if (!ventaRes.ok) {
@@ -200,14 +286,56 @@ export default function InventarioPage() {
         "vender"
       );
       if (resultado !== true) throw new Error(resultado);
-      setActionSuccess("Venta registrada: $" + total.toLocaleString());
-      setTimeout(cerrarModal, 1800);
+
+      if (parcialVenta) {
+        const saldo = total - montoRecibido;
+        const clienteId = clienteEsMiembro
+          ? clienteSeleccionado.id
+          : "ext-" + Date.now();
+        const nombreCliente = clienteEsMiembro
+          ? clienteSeleccionado.nombre
+          : nombreClienteLibre.trim();
+        await fetch("/api/deudas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cliente_id: clienteId,
+            nombre: nombreCliente,
+            tipo: "producto",
+            concepto: selectedProducto.nombre + " x" + cantidad,
+            monto_total: total,
+            monto_pagado: montoRecibido,
+          }),
+        });
+        setActionSuccess(
+          "Venta registrada. Anticipo: $" +
+            montoRecibido.toLocaleString() +
+            " — " +
+            nombreCliente +
+            " debe: $" +
+            saldo.toLocaleString()
+        );
+      } else {
+        setActionSuccess("Venta registrada: $" + total.toLocaleString());
+      }
+      setTimeout(cerrarModal, 2000);
     } catch (err) {
       setCantidadError(err.message || "Error al registrar la venta");
     } finally {
       setIsSubmitting(false);
     }
-  }, [cantidad, selectedProducto, actualizarStock, cerrarModal]);
+  }, [
+    cantidad,
+    metodoPagoVenta,
+    parcialVenta,
+    montoParcialVenta,
+    clienteEsMiembro,
+    clienteSeleccionado,
+    nombreClienteLibre,
+    selectedProducto,
+    actualizarStock,
+    cerrarModal,
+  ]);
 
   const agregarStock = useCallback(async () => {
     setCantidadError("");
@@ -252,7 +380,10 @@ export default function InventarioPage() {
           nombre: nuevoProducto.nombre.trim(),
           stock: parseInt(nuevoProducto.stock) || 0,
           precio_venta: parseInt(nuevoProducto.precio_venta),
-          stock_minimo: parseInt(nuevoProducto.stock_minimo) || 5,
+          stock_minimo:
+            nuevoProducto.stock_minimo !== ""
+              ? parseInt(nuevoProducto.stock_minimo)
+              : 0,
         }),
       });
       if (!response.ok) {
@@ -288,12 +419,15 @@ export default function InventarioPage() {
           id: selectedProducto.id,
           nombre: editarData.nombre.trim(),
           precio_venta: parseInt(editarData.precio_venta),
-          stock_minimo: parseInt(editarData.stock_minimo) || 5,
+          stock_minimo:
+            editarData.stock_minimo !== ""
+              ? parseInt(editarData.stock_minimo)
+              : 0,
         }),
       });
       if (!response.ok) {
         const d = await response.json();
-        throw new Error(d.error || "Error al actualizar producto");
+        throw new Error(d.error || "Error al actualizar");
       }
       await fetchData();
       setActionSuccess("Producto actualizado correctamente");
@@ -304,6 +438,38 @@ export default function InventarioPage() {
       setIsSubmitting(false);
     }
   }, [editarData, selectedProducto, fetchData, cerrarModal]);
+
+  const registrarMovimientoCaja = useCallback(async () => {
+    setCajaModalError("");
+    const monto = parseFloat(cajaModalData.monto);
+    if (!monto || monto <= 0) {
+      setCajaModalError("Ingresa un monto valido");
+      return;
+    }
+    setCajaSubmitting(true);
+    try {
+      const response = await fetch("/api/caja/productos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: cajaModal,
+          concepto:
+            cajaModalData.concepto ||
+            (cajaModal === "retiro" ? "Retiro del dueño" : "Fondo agregado"),
+          monto,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Error al registrar");
+      await fetchData();
+      setCajaModal(null);
+      setCajaModalData({ concepto: "", monto: "" });
+    } catch (err) {
+      setCajaModalError(err.message || "Error al registrar movimiento");
+    } finally {
+      setCajaSubmitting(false);
+    }
+  }, [cajaModal, cajaModalData, fetchData]);
 
   const exportarCSV = useCallback(() => {
     const headers = [
@@ -368,7 +534,6 @@ export default function InventarioPage() {
 
   return (
     <div>
-      {/* Header */}
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
@@ -405,6 +570,142 @@ export default function InventarioPage() {
           </button>
         </div>
       </div>
+
+      {/* Caja chica */}
+      {cajaProductos && (
+        <div className="mb-8">
+          <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+            Caja chica — Productos
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="sm:col-span-2 bg-primary/5 border border-primary/20 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <Wallet className="w-5 h-5 text-primary" />
+                <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider">
+                  En caja ahorita
+                </span>
+              </div>
+              <p className="text-4xl font-black text-primary">
+                ${cajaProductos.saldoEnCaja.toLocaleString()}
+              </p>
+              <p className="text-gray-500 text-xs mt-1">
+                Incluye ventas efectivo del día + fondo base
+              </p>
+            </div>
+            <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-4 h-4 text-green-400" />
+                <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider">
+                  Ventas efectivo hoy
+                </span>
+              </div>
+              <p className="text-2xl font-black text-green-400">
+                ${cajaProductos.ventasEfectivoHoy.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingDown className="w-4 h-4 text-red-400" />
+                <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider">
+                  Retiros hoy
+                </span>
+              </div>
+              <p className="text-2xl font-black text-red-400">
+                ${cajaProductos.retirosHoy.toLocaleString()}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setCajaModal("fondo");
+                setCajaModalData({ concepto: "", monto: "" });
+                setCajaModalError("");
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-green-500/15 text-green-400 border border-green-500/25 hover:bg-green-500/25 rounded-xl text-sm font-semibold transition-colors"
+            >
+              <PlusCircle className="w-4 h-4" /> Agregar fondo
+            </button>
+            <button
+              onClick={() => {
+                setCajaModal("retiro");
+                setCajaModalData({ concepto: "", monto: "" });
+                setCajaModalError("");
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-500/15 text-red-400 border border-red-500/25 hover:bg-red-500/25 rounded-xl text-sm font-semibold transition-colors"
+            >
+              <MinusCircle className="w-4 h-4" /> Registrar retiro
+            </button>
+          </div>
+          {cajaProductos.movimientosHoy.length > 0 && (
+            <div className="mt-4 bg-gray-900/40 rounded-xl border border-gray-800 overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-800">
+                <h3 className="text-white font-semibold text-sm">
+                  Movimientos de caja hoy
+                </h3>
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-800 bg-gray-800/40">
+                    {["Tipo", "Concepto", "Monto", "Saldo resultante"].map(
+                      (h) => (
+                        <th
+                          key={h}
+                          className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                        >
+                          {h}
+                        </th>
+                      )
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800/60">
+                  {cajaProductos.movimientosHoy.map((m, idx) => (
+                    <tr
+                      key={idx}
+                      className="hover:bg-gray-800/30 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <span
+                          className={
+                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border " +
+                            (m.tipo === "retiro"
+                              ? "bg-red-500/10 text-red-400 border-red-500/20"
+                              : "bg-green-500/10 text-green-400 border-green-500/20")
+                          }
+                        >
+                          {m.tipo === "retiro" ? (
+                            <TrendingDown className="w-3 h-3" />
+                          ) : (
+                            <TrendingUp className="w-3 h-3" />
+                          )}
+                          {m.tipo === "retiro" ? "Retiro" : "Fondo"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-300">{m.concepto}</td>
+                      <td className="px-4 py-3 font-semibold tabular-nums">
+                        <span
+                          className={
+                            m.tipo === "retiro"
+                              ? "text-red-400"
+                              : "text-green-400"
+                          }
+                        >
+                          {m.tipo === "retiro" ? "-" : "+"}$
+                          {m.monto.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-white font-semibold tabular-nums">
+                        ${m.saldo_nuevo.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6">
@@ -605,7 +906,7 @@ export default function InventarioPage() {
         </div>
       </div>
 
-      {/* Tabla ventas periodo */}
+      {/* Tabla ventas */}
       <div className="bg-gray-900/40 rounded-xl border border-gray-800 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-800">
           <h2 className="text-white font-semibold text-sm flex items-center gap-2">
@@ -617,21 +918,23 @@ export default function InventarioPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-800/40">
-                {["Producto", "Cantidad", "Total", "Fecha"].map((h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                  >
-                    {h}
-                  </th>
-                ))}
+                {["Producto", "Cantidad", "Total", "Metodo", "Fecha"].map(
+                  (h) => (
+                    <th
+                      key={h}
+                      className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                    >
+                      {h}
+                    </th>
+                  )
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/60">
               {ventas.detalle.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="text-center py-10 text-gray-500 text-sm"
                   >
                     No hay ventas {PERIODO_LABEL[filtro]}
@@ -651,6 +954,20 @@ export default function InventarioPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-300 font-semibold tabular-nums">
                       ${venta.total.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={
+                          "px-2.5 py-1 rounded-lg text-[11px] font-semibold border " +
+                          (venta.metodo_pago === "efectivo"
+                            ? "bg-green-500/10 text-green-400 border-green-500/20"
+                            : "bg-blue-500/10 text-blue-400 border-blue-500/20")
+                        }
+                      >
+                        {venta.metodo_pago === "efectivo"
+                          ? "Efectivo"
+                          : "Transferencia"}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-gray-500">
                       {venta.fecha || "-"}
@@ -678,7 +995,7 @@ export default function InventarioPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="bg-gray-900 rounded-2xl max-w-md w-full p-6 border border-gray-800"
+              className="bg-gray-900 rounded-2xl max-w-md w-full p-6 border border-gray-800 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-5">
@@ -769,7 +1086,7 @@ export default function InventarioPage() {
                         }))
                       }
                       className={inputClass}
-                      placeholder="Ej: 5"
+                      placeholder="Ej: 0"
                     />
                   </div>
                   <div className="flex gap-3 pt-2">
@@ -900,13 +1217,223 @@ export default function InventarioPage() {
                       </p>
                     )}
                   </div>
+                  <div>
+                    <label className={labelClass}>Metodo de pago</label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {["efectivo", "transferencia"].map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setMetodoPagoVenta(m)}
+                          className={
+                            "py-2.5 rounded-xl text-xs font-semibold transition-all border capitalize " +
+                            (metodoPagoVenta === m
+                              ? "bg-primary border-primary text-white"
+                              : "bg-white/5 border-white/10 text-gray-400 hover:text-white")
+                          }
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Toggle anticipo */}
+                  <div className="flex items-center justify-between px-4 py-3 bg-gray-800/50 rounded-xl">
+                    <div>
+                      <p className="text-white text-sm font-medium">
+                        Anticipo / Pago parcial
+                      </p>
+                      <p className="text-gray-500 text-xs">
+                        El cliente no paga el total
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setParcialVenta((v) => !v);
+                        setMontoParcialVenta("");
+                        resetClienteState();
+                      }}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        parcialVenta ? "bg-primary" : "bg-gray-700"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                          parcialVenta ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {parcialVenta && (
+                    <div className="space-y-3">
+                      {/* Monto parcial */}
+                      <div>
+                        <label className={labelClass}>
+                          Monto que paga ahora *
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={montoParcialVenta}
+                          onChange={(e) => setMontoParcialVenta(e.target.value)}
+                          className={inputClass}
+                          placeholder={
+                            "Total: $" +
+                            (
+                              cantidad * selectedProducto.precio_venta
+                            ).toLocaleString()
+                          }
+                        />
+                        {montoParcialVenta && (
+                          <p className="text-orange-400 text-xs mt-1.5">
+                            Queda debiendo: $
+                            {Math.max(
+                              0,
+                              cantidad * selectedProducto.precio_venta -
+                                parseFloat(montoParcialVenta || 0)
+                            ).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* ¿Es miembro? */}
+                      <div>
+                        <label className={labelClass}>
+                          ¿El cliente es miembro?
+                        </label>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setClienteEsMiembro(true);
+                              setNombreClienteLibre("");
+                            }}
+                            className={
+                              "py-2.5 rounded-xl text-xs font-semibold transition-all border flex items-center justify-center gap-1.5 " +
+                              (clienteEsMiembro === true
+                                ? "bg-primary border-primary text-white"
+                                : "bg-white/5 border-white/10 text-gray-400 hover:text-white")
+                            }
+                          >
+                            <Users className="w-3.5 h-3.5" /> Sí, es miembro
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setClienteEsMiembro(false);
+                              setClienteSeleccionado(null);
+                              setBusquedaCliente("");
+                            }}
+                            className={
+                              "py-2.5 rounded-xl text-xs font-semibold transition-all border flex items-center justify-center gap-1.5 " +
+                              (clienteEsMiembro === false
+                                ? "bg-primary border-primary text-white"
+                                : "bg-white/5 border-white/10 text-gray-400 hover:text-white")
+                            }
+                          >
+                            <User className="w-3.5 h-3.5" /> No, es externo
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Buscador de miembro */}
+                      {clienteEsMiembro === true && (
+                        <div>
+                          <label className={labelClass}>Buscar miembro</label>
+                          {clienteSeleccionado ? (
+                            <div className="flex items-center justify-between px-3 py-2.5 bg-primary/10 border border-primary/25 rounded-xl">
+                              <div>
+                                <p className="text-white text-sm font-medium">
+                                  {clienteSeleccionado.nombre}
+                                </p>
+                                <p className="text-gray-500 text-xs">
+                                  {clienteSeleccionado.plan} ·{" "}
+                                  {clienteSeleccionado.telefono}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setClienteSeleccionado(null);
+                                  setBusquedaCliente("");
+                                }}
+                                className="text-gray-500 hover:text-white"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                              <input
+                                type="text"
+                                value={busquedaCliente}
+                                onChange={(e) =>
+                                  setBusquedaCliente(e.target.value)
+                                }
+                                placeholder="Escribe el nombre del miembro..."
+                                className="pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 w-full text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                              />
+                              {clientesFiltrados.length > 0 && (
+                                <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-xl overflow-hidden z-10 shadow-xl">
+                                  {clientesFiltrados.map((c) => (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setClienteSeleccionado(c);
+                                        setBusquedaCliente("");
+                                      }}
+                                      className="w-full px-3 py-2.5 text-left hover:bg-gray-700 transition-colors border-b border-gray-700/50 last:border-0"
+                                    >
+                                      <p className="text-white text-sm font-medium">
+                                        {c.nombre}
+                                      </p>
+                                      <p className="text-gray-500 text-xs">
+                                        {c.plan} · {c.telefono || "Sin tel"}
+                                      </p>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Nombre libre */}
+                      {clienteEsMiembro === false && (
+                        <div>
+                          <label className={labelClass}>
+                            Nombre del cliente *
+                          </label>
+                          <input
+                            type="text"
+                            value={nombreClienteLibre}
+                            onChange={(e) =>
+                              setNombreClienteLibre(e.target.value)
+                            }
+                            className={inputClass}
+                            placeholder="Ej: Juan Perez"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="px-4 py-3 bg-gray-800/50 rounded-xl flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">Total</span>
+                    <span className="text-gray-400 text-sm">
+                      {parcialVenta ? "Anticipo" : "Total"}
+                    </span>
                     <span className="text-xl font-black text-green-400">
                       $
-                      {(
-                        cantidad * selectedProducto.precio_venta
-                      ).toLocaleString()}
+                      {parcialVenta && montoParcialVenta
+                        ? parseFloat(montoParcialVenta).toLocaleString()
+                        : (
+                            cantidad * selectedProducto.precio_venta
+                          ).toLocaleString()}
                     </span>
                   </div>
                   <div className="flex gap-3">
@@ -984,6 +1511,115 @@ export default function InventarioPage() {
                   </div>
                 </div>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal caja chica */}
+      <AnimatePresence>
+        {cajaModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={() => setCajaModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-gray-900 rounded-2xl max-w-sm w-full p-6 border border-gray-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-5">
+                <div>
+                  <h2 className="text-lg font-bold text-white">
+                    {cajaModal === "retiro"
+                      ? "Registrar retiro"
+                      : "Agregar fondo"}
+                  </h2>
+                  {cajaProductos && (
+                    <p className="text-gray-500 text-xs mt-0.5">
+                      Saldo actual:{" "}
+                      <span className="text-white font-semibold">
+                        ${cajaProductos.saldoEnCaja.toLocaleString()}
+                      </span>
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setCajaModal(null)}
+                  className="text-gray-500 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              {cajaModalError && (
+                <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/25 rounded-xl text-red-400 text-sm">
+                  {cajaModalError}
+                </div>
+              )}
+              <div className="space-y-4">
+                <div>
+                  <label className={labelClass}>Concepto</label>
+                  <input
+                    type="text"
+                    value={cajaModalData.concepto}
+                    onChange={(e) =>
+                      setCajaModalData((p) => ({
+                        ...p,
+                        concepto: e.target.value,
+                      }))
+                    }
+                    className={inputClass}
+                    placeholder={
+                      cajaModal === "retiro"
+                        ? "Ej: Retiro del dueño"
+                        : "Ej: Fondo para cambio"
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Monto *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={cajaModalData.monto}
+                    onChange={(e) =>
+                      setCajaModalData((p) => ({ ...p, monto: e.target.value }))
+                    }
+                    className={inputClass}
+                    placeholder="Ej: 200"
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={registrarMovimientoCaja}
+                    disabled={cajaSubmitting}
+                    className={
+                      "flex-1 py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50 " +
+                      (cajaModal === "retiro"
+                        ? "bg-red-500 hover:bg-red-400"
+                        : "bg-green-500 hover:bg-green-400")
+                    }
+                  >
+                    {cajaSubmitting
+                      ? "Registrando..."
+                      : cajaModal === "retiro"
+                      ? "Confirmar retiro"
+                      : "Agregar fondo"}
+                  </button>
+                  <button
+                    onClick={() => setCajaModal(null)}
+                    className="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm text-gray-300 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}
